@@ -272,7 +272,8 @@ function checker() {
         needClear = false;
     }
     if (update) {
-        let msg = "```diff\n";
+        let date = new Date();
+        let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n";
         USERS.forEach((name) => {
             if (ONLINE.includes(name)) {
                 msg += "+ " + name.toUpperCase() + "\n";
