@@ -1,7 +1,6 @@
 const fs = require("fs");
 const Discord = require("discord.js");
 const axios = require("axios");
-const { config } = require("process");
 
 let CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
 let BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
