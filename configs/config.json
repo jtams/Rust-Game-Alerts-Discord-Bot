@@ -1,9 +1,9 @@
 {
-    "setup": "complete",
-    "active": true,
-    "channelId": "736692049042210916",
-    "channelName": "rust-alerts",
-    "battlemetrics": "https://www.battlemetrics.com/servers/rust/4519748",
+    "setup": "not complete",
+    "active": false,
+    "channelId": "",
+    "channelName": "",
+    "battlemetrics": "",
     "time": 10000,
     "alert": "least"
 }
