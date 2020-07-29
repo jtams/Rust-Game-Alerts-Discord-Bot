@@ -1,7 +1,6 @@
 const fs = require("fs");
 const Discord = require("discord.js");
 const axios = require("axios");
-const cheerio = require("cheerio");
 const { config } = require("process");
 
 let CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
@@ -73,11 +72,13 @@ client.on("message", (msg) => {
     }
 
     if (msg.includes("battlemetrics.com/servers/rust")) {
+        msg = msg.replace(/[^0-9]/g, "");
+        msg = parseInt(msg);
         if (getMetrics(msg) == false) {
             msgData.channel.send(`Can't connect to link. Are you sure it's correct? Please type it again.`);
         } else {
             CONFIG.battlemetrics = msg;
-            msgData.channel.send(`I will use ${msg}`);
+            msgData.channel.send(`I will use server ID: ${msg}`);
             msgData.channel.send(`SETUP COMPLETE`);
             CONFIG.setup = "complete";
             msgData.channel.send(
@@ -85,6 +86,7 @@ client.on("message", (msg) => {
             );
             save();
         }
+        return;
     }
 
     if (msg == "!help") {
@@ -264,55 +266,56 @@ client.login(BOT.token);
 // --------------------------------------------FUNCTIONS---------------------------------------
 
 function checker() {
-    getOnlineStatus(CONFIG.url);
-    if (needClear && updateMessage != "") {
-        updateMessage.delete().then().catch(console.error);
-        updateMessage = "";
-        update = true;
-        needClear = false;
-    }
-    if (update) {
-        let date = new Date();
-        let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n";
-        USERS.forEach((name) => {
-            if (ONLINE.includes(name)) {
-                msg += "+ " + name.toUpperCase() + "\n";
-                if (CONFIG.alert == "online") {
-                    client.channels.cache
-                        .get(CONFIG.channelId)
-                        .send("ONLINE UPDATE")
-                        .then((upMsg) => upMsg.delete().catch(console.error));
+    getOnlineStatus(CONFIG.url).then(() => {
+        if (needClear && updateMessage != "") {
+            updateMessage.delete().then().catch(console.error);
+            updateMessage = "";
+            update = true;
+            needClear = false;
+        }
+        if (update) {
+            let date = new Date();
+            let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n";
+            USERS.forEach((name) => {
+                if (ONLINE.includes(name)) {
+                    msg += "+ " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "online") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("ONLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                } else {
+                    msg += "- " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "offline") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("OFFLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
                 }
+            });
+            msg += "\n```";
+
+            if (updateMessage == "") {
+                client.channels.cache
+                    .get(CONFIG.channelId)
+                    .send(msg)
+                    .then((upMsg) => (updateMessage = upMsg));
             } else {
-                msg += "- " + name.toUpperCase() + "\n";
-                if (CONFIG.alert == "offline") {
-                    client.channels.cache
-                        .get(CONFIG.channelId)
-                        .send("OFFLINE UPDATE")
-                        .then((upMsg) => upMsg.delete().catch(console.error));
-                }
+                updateMessage.edit(msg);
             }
-        });
-        msg += "\n```";
+            update = false;
 
-        if (updateMessage == "") {
-            client.channels.cache
-                .get(CONFIG.channelId)
-                .send(msg)
-                .then((upMsg) => (updateMessage = upMsg));
-        } else {
-            updateMessage.edit(msg);
+            if (CONFIG.alert == "most") {
+                client.channels.cache
+                    .get(CONFIG.channelId)
+                    .send("UPDATE")
+                    .then((upMsg) => upMsg.delete().catch(console.error));
+            }
         }
-        update = false;
-
-        if (CONFIG.alert == "most") {
-            client.channels.cache
-                .get(CONFIG.channelId)
-                .send("UPDATE")
-                .then((upMsg) => upMsg.delete().catch(console.error));
-        }
-    }
-    return;
+        return;
+    });
 }
 
 async function clear(msg) {
@@ -320,16 +323,27 @@ async function clear(msg) {
     msg.channel.bulkDelete(fetched).then().catch(console.error);
 }
 
-function getMetrics(url) {
-    if (url == undefined) {
+function getMetrics(serverID) {
+    if (serverID == undefined) {
         if (CONFIG.battlemetrics == undefined) {
             return false;
         } else {
-            url = CONFIG.battlemetrics;
+            serverID = CONFIG.battlemetrics;
         }
     }
+
+    var data = "";
+
+    var config = {
+        method: "get",
+        url: `https://api.battlemetrics.com/servers/${serverID}?include=player`,
+        headers: {
+            Authorization: BOT.api_auth_key,
+        },
+        data: data,
+    };
     return new Promise((resolve) => {
-        axios(url)
+        axios(config)
             .then((response) => {
                 resolve(response.data);
             })
@@ -339,27 +353,35 @@ function getMetrics(url) {
     });
 }
 
-function getOnlineStatus(url) {
-    if (url == undefined) {
+function getOnlineStatus(serverID) {
+    if (serverID == undefined) {
         if (CONFIG.battlemetrics == undefined) {
             return false;
         } else {
-            url = CONFIG.battlemetrics;
+            serverID = CONFIG.battlemetrics;
         }
     }
-    getMetrics(url)
-        .then((html) => {
-            $ = cheerio.load(html);
-            playerTable = $(".css-1y3vvw9");
-            playerText = playerTable.text().toLowerCase();
-            USERS.forEach((name) => {
-                if (playerText.includes(name)) {
-                    if (!ONLINE.includes(name)) {
-                        ONLINE.push(name);
-                        update = true;
+    return new Promise((resolve) => {
+        getMetrics(serverID)
+            .then((data) => {
+                data = data.included;
+                USERS.forEach((name) => {
+                    let nameFound = false;
+                    for (let i = 0; i < data.length; i++) {
+                        let users = data[i];
+                        if (users.attributes.name.toLowerCase().includes(name)) {
+                            if (!ONLINE.includes(name)) {
+                                ONLINE.push(name);
+                                nameFound = true;
+                                update = true;
+                                break;
+                            } else {
+                                nameFound = true;
+                                break;
+                            }
+                        }
                     }
-                } else {
-                    if (ONLINE.includes(name)) {
+                    if (ONLINE.includes(name) && !nameFound) {
                         ONLINE.forEach((username, index) => {
                             if (name == username) {
                                 ONLINE.splice(index, 1);
@@ -367,10 +389,11 @@ function getOnlineStatus(url) {
                             }
                         });
                     }
-                }
+                });
+                resolve(true);
+            })
+            .catch((err) => {
+                console.log(err);
             });
-        })
-        .catch((err) => {
-            console.log(err);
-        });
+    });
 }
