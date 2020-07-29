@@ -4,8 +4,9 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 const { config } = require("process");
 
-let CONFIG = JSON.parse(fs.readFileSync("./config.json"));
-let USERS = JSON.parse(fs.readFileSync("./users.json"));
+let CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
+let BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
+let USERS = JSON.parse(fs.readFileSync("./configs/users.json"));
 
 const ONLINE = [];
 var update = false;
@@ -14,8 +15,8 @@ var needClear = false;
 var loop;
 
 function save() {
-    fs.writeFileSync("./config.json", JSON.stringify(CONFIG));
-    fs.writeFileSync("./users.json", JSON.stringify(USERS));
+    fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
+    fs.writeFileSync("./configs/users.json", JSON.stringify(USERS));
 }
 
 client = new Discord.Client();
@@ -25,7 +26,6 @@ client.on("ready", () => {
 });
 
 default_config = {
-    token: "NzM0OTkzMDY5ODU3ODMyOTkx.XxZzZQ.-OA8N1Qslrph9i61jbVPsiGqNw8",
     setup: "not complete",
     active: false,
     channelId: "",
@@ -48,8 +48,8 @@ client.on("message", (msg) => {
     if (CONFIG.setup == "waiting" && msg == "yes") {
         msg = "!setup";
         CONFIG.setup = "not complete";
-        fs.writeFileSync("./config.json", JSON.stringify(default_config));
-        CONFIG = JSON.parse(fs.readFileSync("./config.json"));
+        fs.writeFileSync("./configs/config.json", JSON.stringify(default_config));
+        CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
     }
 
     if (msg === "!setup") {
@@ -260,7 +260,7 @@ client.on("message", (msg) => {
     }
 });
 
-client.login(CONFIG.token);
+client.login(BOT.token);
 // --------------------------------------------FUNCTIONS---------------------------------------
 
 function checker() {
