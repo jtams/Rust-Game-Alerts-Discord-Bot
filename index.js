@@ -5,6 +5,7 @@ const axios = require("axios");
 let CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
 let BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
 let USERS = JSON.parse(fs.readFileSync("./configs/users.json"));
+let SQUAD = JSON.parse(fs.readFileSync("./configs/squad.json"));
 
 const ONLINE = [];
 var update = false;
@@ -15,6 +16,7 @@ var loop;
 function save() {
     fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
     fs.writeFileSync("./configs/users.json", JSON.stringify(USERS));
+    fs.writeFileSync("./configs/squad.json", JSON.stringify(SQUAD));
 }
 
 client = new Discord.Client();
@@ -177,6 +179,27 @@ client.on("message", (msg) => {
         needClear = true;
     }
 
+    if (msg.substr(0, 6) == "!squad") {
+        let names = msg.split(",");
+        names[0] = names[0].substr(6);
+        names.forEach((name, index) => {
+            name = name.trim();
+            names[index] = name;
+            if (SQUAD.includes(name)) {
+                names.splice(index, 1);
+            }
+        });
+        if (names.length == 0) {
+            msgData.channel.send(`No users added`);
+            return;
+        }
+        SQUAD.slice(0, SQUAD.length);
+        SQUAD.push(...names);
+        save();
+        msgData.channel.send(`Added **${names}** to squad`);
+        needClear = true;
+    }
+
     if (msg == "!list") {
         let returnMsg = "";
         if (USERS.length == 0) {
@@ -275,6 +298,31 @@ function checker() {
         if (update) {
             let date = new Date();
             let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n";
+
+            SQUAD.forEach((name) => {
+                if (ONLINE.includes(name)) {
+                    msg += "+ " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "online") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("ONLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                } else {
+                    msg += "- " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "offline") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("OFFLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                }
+            });
+
+            if (SQUAD.length != 0) {
+                msg += "\n";
+            }
+
             USERS.forEach((name) => {
                 if (ONLINE.includes(name)) {
                     msg += "+ " + name.toUpperCase() + "\n";
@@ -389,8 +437,36 @@ function getOnlineStatus(serverID) {
                         });
                     }
                 });
+
+                SQUAD.forEach((name) => {
+                    let nameFound = false;
+                    for (let i = 0; i < data.length; i++) {
+                        let users = data[i];
+                        if (users.attributes.name.toLowerCase().includes(name)) {
+                            if (!ONLINE.includes(name)) {
+                                ONLINE.push(name);
+                                nameFound = true;
+                                update = true;
+                                break;
+                            } else {
+                                nameFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (ONLINE.includes(name) && !nameFound) {
+                        ONLINE.forEach((username, index) => {
+                            if (name == username) {
+                                ONLINE.splice(index, 1);
+                                update = true;
+                            }
+                        });
+                    }
+                });
+
                 resolve(true);
             })
+
             .catch((err) => {
                 console.log(err);
             });
