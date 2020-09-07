@@ -7,7 +7,7 @@ let BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
 let USERS = JSON.parse(fs.readFileSync("./configs/users.json"));
 let SQUAD = JSON.parse(fs.readFileSync("./configs/squad.json"));
 let ALLIES = JSON.parse(fs.readFileSync("./configs/allies.json"));
-let ENEMIES = JSON.parse(fs.readFileSync("./configs/ENEMIES.json"));
+let ENEMIES = JSON.parse(fs.readFileSync("./configs/enemies.json"));
 
 const ONLINE = [];
 var update = false;
@@ -434,6 +434,8 @@ function checker() {
             if (ENEMIES.length != 0) {
                 msg += "\n";
             }
+
+            msg += "OTHERS:\n";
 
             USERS.forEach((name) => {
                 if (ONLINE.includes(name)) {
