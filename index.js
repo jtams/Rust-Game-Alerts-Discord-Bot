@@ -6,6 +6,8 @@ let CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
 let BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
 let USERS = JSON.parse(fs.readFileSync("./configs/users.json"));
 let SQUAD = JSON.parse(fs.readFileSync("./configs/squad.json"));
+let ALLIES = JSON.parse(fs.readFileSync("./configs/allies.json"));
+let ENEMIES = JSON.parse(fs.readFileSync("./configs/ENEMIES.json"));
 
 const ONLINE = [];
 var update = false;
@@ -17,6 +19,8 @@ function save() {
     fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
     fs.writeFileSync("./configs/users.json", JSON.stringify(USERS));
     fs.writeFileSync("./configs/squad.json", JSON.stringify(SQUAD));
+    fs.writeFileSync("./configs/allies.json", JSON.stringify(ALLIES));
+    fs.writeFileSync("./configs/enemies.json", JSON.stringify(ENEMIES));
 }
 
 client = new Discord.Client();
@@ -159,53 +163,114 @@ client.on("message", (msg) => {
         needClear = true;
     }
 
-    if (msg.substr(0, 4) == "!add") {
-        let names = msg.split(",");
-        names[0] = names[0].substr(4);
-        names.forEach((name, index) => {
-            name = name.trim();
-            names[index] = name;
-            if (USERS.includes(name)) {
-                names.splice(index, 1);
-            }
-        });
-        if (names.length == 0) {
-            msgData.channel.send(`No users added`);
-            return;
-        }
-        USERS.push(...names);
-        save();
-        msgData.channel.send(`Added ${names}`);
-        needClear = true;
-    }
+    /*
+!add ally blah, blah, blah
+!add friend blah, blah, blah
+!add enemy blah, blah, blah
 
-    if (msg.substr(0, 6) == "!squad") {
-        let names = msg.split(",");
-        names[0] = names[0].substr(6);
+ally.json
+enemies.json
+
+```
+RUST UPDATE
+SQUAD
+
+ALLIES
+
+ENEMIES
+
+ADDED
+```
+
+
+check for ally or friend after !add
+changing boolean
+substr ally/friend from string
+if bool, add name to allies
+same for enemies
+
+load new JSONs
+msg on loop
+*/
+
+    if (msg.substr(0, 4) == "!add") {
+        let ally = false;
+        let enemy = false;
+        let squad = false;
+        let names = msg;
+        if (msg.substr(5, 4).toLowerCase() == "ally" || msg.substr(5, 6).toLowerCase() == "friend") {
+            ally = true;
+            names = msg.split(",");
+            names[0] = names[0].split(" ").splice(2).join(" ");
+        } else if (msg.substr(5, 5).toLowerCase() == "enemy") {
+            enemy = true;
+            names = msg.split(",");
+            names[0] = names[0].split(" ").splice(2).join(" ");
+        } else if (msg.substr(5, 5).toLowerCase() == "squad") {
+            squad = true;
+            names = msg.split(",");
+            names[0] = names[0].split(" ").splice(2).join(" ");
+        } else {
+            let names = msg.split(",");
+            names[0] = names[0].substr(4);
+        }
         names.forEach((name, index) => {
             name = name.trim();
             names[index] = name;
-            if (SQUAD.includes(name)) {
-                names.splice(index, 1);
+            if (ally) {
+                if (ALLIES.includes(name)) {
+                    names.splice(index, 1);
+                }
+            } else if (enemy) {
+                if (ENEMIES.includes(name)) {
+                    names.splice(index, 1);
+                }
+            } else if (squad) {
+                if (SQUAD.includes(name)) {
+                    names.splice(index, 1);
+                }
+            } else {
+                if (USERS.includes(name)) {
+                    names.splice(index, 1);
+                }
             }
         });
         if (names.length == 0) {
             msgData.channel.send(`No users added`);
             return;
         }
-        SQUAD.slice(0, SQUAD.length);
-        SQUAD.push(...names);
+        if (ally) {
+            ALLIES.push(...names);
+            msgData.channel.send(`Added ${names} to allies`);
+        } else if (enemy) {
+            ENEMIES.push(...names);
+            msgData.channel.send(`Added ${names} to enemies`);
+        } else if (squad) {
+            SQUAD.push(...names);
+            msgData.channel.send(`Added ${names} to squad`);
+        } else {
+            USERS.push(...names);
+            msgData.channel.send(`Added ${names}`);
+        }
         save();
-        msgData.channel.send(`Added **${names}** to squad`);
         needClear = true;
     }
 
     if (msg == "!list") {
         let returnMsg = "";
-        if (USERS.length == 0) {
+        if (USERS.length == 0 && ALLIES.length == 0 && ENEMIES.length == 0 && SQUAD.length == 0) {
             msgData.channel.send("No users added. Use: !add [username], [username], [username]");
             return;
         }
+        SQUAD.forEach((name) => {
+            returnMsg += name + ", ";
+        });
+        ALLIES.forEach((name) => {
+            returnMsg += name + ", ";
+        });
+        ENEMIES.forEach((name) => {
+            returnMsg += name + ", ";
+        });
         USERS.forEach((name) => {
             returnMsg += name + ", ";
         });
@@ -214,12 +279,14 @@ client.on("message", (msg) => {
     }
 
     if (msg.substr(0, 7) == "!remove") {
-        if (USERS.length == 0) {
+        if (USERS.length == 0 && ALLIES.length == 0 && ENEMIES.length == 0 && SQUAD.length == 0) {
             msgData.channel.send("No users added. Use: !add [username], [username], [username]");
             return;
         }
         if (msg.substr(8) == "all") {
             USERS = [];
+            ENEMIES = [];
+            ALLIES = [];
             save();
             msgData.channel.send("Removed all users");
             return;
@@ -232,6 +299,24 @@ client.on("message", (msg) => {
             USERS.forEach((username, index) => {
                 if (username.includes(name)) {
                     USERS.splice(index, 1);
+                    removed.push(name);
+                }
+            });
+            SQUAD.forEach((username, index) => {
+                if (username.includes(name)) {
+                    SQUAD.splice(index, 1);
+                    removed.push(name);
+                }
+            });
+            ENEMIES.forEach((username, index) => {
+                if (username.includes(name)) {
+                    ENEMIES.splice(index, 1);
+                    removed.push(name);
+                }
+            });
+            ALLIES.forEach((username, index) => {
+                if (username.includes(name)) {
+                    ALLIES.splice(index, 1);
                     removed.push(name);
                 }
             });
@@ -253,7 +338,7 @@ client.on("message", (msg) => {
     }
 
     if (msg == "!start") {
-        if (USERS.length == 0) {
+        if (USERS.length == 0 && ALLIES.length == 0 && ENEMIES.length == 0 && SQUAD.length == 0) {
             msgData.channel.send("No users added. Use: !add [username], [username], [username]");
             return;
         }
@@ -297,8 +382,11 @@ function checker() {
         }
         if (update) {
             let date = new Date();
-            let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n";
+            let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n\n";
 
+            if (SQUAD.length != 0) {
+                msg += "SQUAD: \n";
+            }
             SQUAD.forEach((name) => {
                 if (ONLINE.includes(name)) {
                     msg += "+ " + name.toUpperCase() + "\n";
@@ -320,6 +408,60 @@ function checker() {
             });
 
             if (SQUAD.length != 0) {
+                msg += "\n";
+            }
+
+            if (ALLIES.length != 0) {
+                msg += "ALLIES: \n";
+            }
+            ALLIES.forEach((name) => {
+                if (ONLINE.includes(name)) {
+                    msg += "+ " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "online") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("ONLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                } else {
+                    msg += "- " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "offline") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("OFFLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                }
+            });
+
+            if (ALLIES.length != 0) {
+                msg += "\n";
+            }
+
+            if (ENEMIES.length != 0) {
+                msg += "ENEMIES: \n";
+            }
+            ENEMIES.forEach((name) => {
+                if (ONLINE.includes(name)) {
+                    msg += "+ " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "online") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("ONLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                } else {
+                    msg += "- " + name.toUpperCase() + "\n";
+                    if (CONFIG.alert == "offline") {
+                        client.channels.cache
+                            .get(CONFIG.channelId)
+                            .send("OFFLINE UPDATE")
+                            .then((upMsg) => upMsg.delete().catch(console.error));
+                    }
+                }
+            });
+
+            if (ENEMIES.length != 0) {
                 msg += "\n";
             }
 
