@@ -163,36 +163,6 @@ client.on("message", (msg) => {
         needClear = true;
     }
 
-    /*
-!add ally blah, blah, blah
-!add friend blah, blah, blah
-!add enemy blah, blah, blah
-
-ally.json
-enemies.json
-
-```
-RUST UPDATE
-SQUAD
-
-ALLIES
-
-ENEMIES
-
-ADDED
-```
-
-
-check for ally or friend after !add
-changing boolean
-substr ally/friend from string
-if bool, add name to allies
-same for enemies
-
-load new JSONs
-msg on loop
-*/
-
     if (msg.substr(0, 4) == "!add") {
         let ally = false;
         let enemy = false;
