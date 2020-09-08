@@ -76,7 +76,7 @@ client.on("message", (msg) => {
         msgData.channel.send("Please paste the link to the battlemetrics.com page for desired server. EX: https://www.battlemetrics.com/servers/rust/99999999");
     }
 
-    if (msg.includes("battlemetrics.com/servers/rust")) {
+    if (msg.includes("battlemetrics.com/servers/rust") && !CONFIG.active) {
         msg = msg.replace(/[^0-9]/g, "");
         msg = parseInt(msg);
         if (getMetrics(msg) == false) {
