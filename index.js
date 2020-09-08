@@ -181,7 +181,7 @@ client.on("message", (msg) => {
             names = msg.split(",");
             names[0] = names[0].split(" ").splice(2).join(" ");
         } else {
-            let names = msg.split(",");
+            names = msg.split(",");
             names[0] = names[0].substr(4);
         }
         names.forEach((name, index) => {
@@ -553,6 +553,58 @@ function getOnlineStatus(serverID) {
                 });
 
                 SQUAD.forEach((name) => {
+                    let nameFound = false;
+                    for (let i = 0; i < data.length; i++) {
+                        let users = data[i];
+                        if (users.attributes.name.toLowerCase().includes(name)) {
+                            if (!ONLINE.includes(name)) {
+                                ONLINE.push(name);
+                                nameFound = true;
+                                update = true;
+                                break;
+                            } else {
+                                nameFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (ONLINE.includes(name) && !nameFound) {
+                        ONLINE.forEach((username, index) => {
+                            if (name == username) {
+                                ONLINE.splice(index, 1);
+                                update = true;
+                            }
+                        });
+                    }
+                });
+
+                ALLIES.forEach((name) => {
+                    let nameFound = false;
+                    for (let i = 0; i < data.length; i++) {
+                        let users = data[i];
+                        if (users.attributes.name.toLowerCase().includes(name)) {
+                            if (!ONLINE.includes(name)) {
+                                ONLINE.push(name);
+                                nameFound = true;
+                                update = true;
+                                break;
+                            } else {
+                                nameFound = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (ONLINE.includes(name) && !nameFound) {
+                        ONLINE.forEach((username, index) => {
+                            if (name == username) {
+                                ONLINE.splice(index, 1);
+                                update = true;
+                            }
+                        });
+                    }
+                });
+
+                ENEMIES.forEach((name) => {
                     let nameFound = false;
                     for (let i = 0; i < data.length; i++) {
                         let users = data[i];
