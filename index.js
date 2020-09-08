@@ -352,7 +352,16 @@ function checker() {
         }
         if (update) {
             let date = new Date();
-            let msg = "```diff\nLAST UPDATE " + date.getHours() + ":" + date.getMinutes() + ":" + date.getSeconds() + "\n\n";
+            let msg =
+                "https://www.battlemetrics.com/servers/rust/" +
+                CONFIG.battlemetrics +
+                "\n```diff\nLAST UPDATE " +
+                date.getHours() +
+                ":" +
+                date.getMinutes() +
+                ":" +
+                date.getSeconds() +
+                "\n\n";
 
             if (SQUAD.length != 0) {
                 msg += "SQUAD: \n";
