@@ -4,6 +4,10 @@ CONFIG = { setup: "not complete", active: false, channelId: null, channelName: n
 BOT = { token: "PASTE YOUR DISCORD BOT TOKEN HERE", api_auth_key: "PASTE YOUR BATTLEMETRICS API KEY HERE" };
 userData = [];
 
+if (!fs.existsSync("./configs")) {
+    fs.mkdirSync("./configs");
+}
+
 if (!fs.existsSync("./configs/config.json")) {
     fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
 } else {
