@@ -1,16 +1,41 @@
 const fs = require("fs");
+
+CONFIG = { setup: "not complete", active: false, channelId: null, channelName: null, battlemetrics: null, time: 10000, alert: "least" };
+BOT = { token: "PASTE YOUR DISCORD BOT TOKEN HERE", api_auth_key: "PASTE YOUR BATTLEMETRICS API KEY HERE" };
+userData = [];
+
+if (!fs.existsSync("./configs/config.json")) {
+    fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
+} else {
+    CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
+    CONFIG.active = false;
+    if (CONFIG.setup == "complete") {
+        User = require("./user");
+    }
+}
+
+if (!fs.existsSync("./configs/users.json")) {
+    fs.writeFileSync("./configs/users.json", "[]");
+} else {
+    userData = JSON.parse(fs.readFileSync("./configs/users.json"));
+}
+
+if (!fs.existsSync("./configs/bot.json")) {
+    fs.writeFileSync("./configs/bot.json", JSON.stringify(BOT));
+    console.log("Your bot.json file is missing data, please open ./configs/bot.json and fill in the required information");
+    return;
+} else {
+    BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
+}
+
 const Discord = require("discord.js");
 const axios = require("axios");
+const qs = require("qs");
 
-let CONFIG = JSON.parse(fs.readFileSync("./configs/config.json"));
-let BOT = JSON.parse(fs.readFileSync("./configs/bot.json"));
-let USERS = JSON.parse(fs.readFileSync("./configs/users.json"));
-let SQUAD = JSON.parse(fs.readFileSync("./configs/squad.json"));
-let ALLIES = JSON.parse(fs.readFileSync("./configs/allies.json"));
-let ENEMIES = JSON.parse(fs.readFileSync("./configs/enemies.json"));
+let USERS = [];
+let pending = [];
 
-const ONLINE = [];
-var update = false;
+var update = true;
 var updateMessage = "";
 var needClear = false;
 var loop;
@@ -18,9 +43,6 @@ var loop;
 function save() {
     fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
     fs.writeFileSync("./configs/users.json", JSON.stringify(USERS));
-    fs.writeFileSync("./configs/squad.json", JSON.stringify(SQUAD));
-    fs.writeFileSync("./configs/allies.json", JSON.stringify(ALLIES));
-    fs.writeFileSync("./configs/enemies.json", JSON.stringify(ENEMIES));
 }
 
 client = new Discord.Client();
@@ -78,19 +100,39 @@ client.on("message", (msg) => {
 
     if (msg.includes("battlemetrics.com/servers/rust") && !CONFIG.active) {
         msg = msg.replace(/[^0-9]/g, "");
-        msg = parseInt(msg);
-        if (getMetrics(msg) == false) {
-            msgData.channel.send(`Can't connect to link. Are you sure it's correct? Please type it again.`);
-        } else {
-            CONFIG.battlemetrics = msg;
-            msgData.channel.send(`I will use server ID: ${msg}`);
-            msgData.channel.send(`SETUP COMPLETE`);
-            CONFIG.setup = "complete";
-            msgData.channel.send(
-                "```COMMANDS:\n    !add username1, username2, etc      =   Adds username(s) to alert\n\n    !remove [username]                  =   Removes username to alert. One at a time\n\n    !list                               =   Lists users that I alert you about\n\n    !stop                               =   Stops alerting\n\n    !start                              =   Starts alerting\n\n    !status                             =   Show update status\n\n    !time [milliseconds]                =   Sets how often online status updates. Default 10000 (10 seconds). No faster than 10 seconds.\n\n    !alert [most/online/offline/least]  =   Changes when Rust Sends discord alert. Most: Anytime someone gets online of offline. Online: Only alerts when user gets online. Offline: Only alerts when user gets offlines. Least: Only alerts when neccessary such as the intial alert status; bot will just edit that message. Default = least\n\n    !config                            =    Returns all your configurations```"
-            );
-            save();
-        }
+
+        let config = {
+            method: "get",
+            url: `https://api.battlemetrics.com/servers/${msg}`,
+            headers: {
+                Authorization: BOT.api_auth_key,
+            },
+            data: "",
+            timeout: 10000,
+        };
+
+        msgData.channel.send(`Verifying Battlemetrics #${msg} (this won't take more than 10 seconds)...`);
+        axios(config)
+            .then(function (response) {
+                CONFIG.battlemetrics = msg;
+                msgData.channel.send(`I will use server ID: ${msg}`);
+                msgData.channel.send(`SETUP COMPLETE`);
+                CONFIG.setup = "complete";
+                msgData.channel.send(
+                    "```COMMANDS:\n    !add username1, username2, etc      =   Adds username(s) to alert\n\n    !remove [username]                  =   Removes username to alert. One at a time\n\n    !list                               =   Lists users that I alert you about\n\n    !stop                               =   Stops alerting\n\n    !start                              =   Starts alerting\n\n    !status                             =   Show update status\n\n    !time [milliseconds]                =   Sets how often online status updates. Default 10000 (10 seconds). No faster than 10 seconds.\n\n    !alert [most/online/offline/least]  =   Changes when Rust Sends discord alert. Most: Anytime someone gets online of offline. Online: Only alerts when user gets online. Offline: Only alerts when user gets offlines. Least: Only alerts when neccessary such as the intial alert status; bot will just edit that message. Default = least\n\n    !config                            =    Returns all your configurations```"
+                );
+                save();
+                User = require("./user");
+            })
+            .catch(function (error) {
+                msgData.channel.send(
+                    `Can't connect to link. Are you sure it's correct? If you can't connnect to it, it's likely incorrect: https://www.battlemetrics.com/servers/rust/${msg}`
+                );
+                console.log(
+                    "Setup link failed. Either it doens't exist or there's a network problem. Try connecting to it yourself: https://api.battlemetrics.com/servers/" +
+                        msg
+                );
+            });
         return;
     }
 
@@ -161,143 +203,125 @@ client.on("message", (msg) => {
         }
         msgData.channel.send(`Alert changed to ${msg.substr(7)}`);
         needClear = true;
+        save();
     }
 
     if (msg.substr(0, 4) == "!add") {
-        let ally = false;
-        let enemy = false;
-        let squad = false;
+        let type;
         let names = msg;
         if (msg.substr(5, 4).toLowerCase() == "ally" || msg.substr(5, 6).toLowerCase() == "friend") {
-            ally = true;
+            type = "ally";
             names = msg.split(",");
             names[0] = names[0].split(" ").splice(2).join(" ");
         } else if (msg.substr(5, 5).toLowerCase() == "enemy") {
-            enemy = true;
+            type = "enemy";
             names = msg.split(",");
             names[0] = names[0].split(" ").splice(2).join(" ");
         } else if (msg.substr(5, 5).toLowerCase() == "squad") {
-            squad = true;
+            type = "squad";
             names = msg.split(",");
             names[0] = names[0].split(" ").splice(2).join(" ");
         } else {
+            type = "other";
             names = msg.split(",");
             names[0] = names[0].substr(4);
         }
         names.forEach((name, index) => {
-            name = name.trim();
+            name = name.trim().toLowerCase();
             names[index] = name;
-            if (ally) {
-                if (ALLIES.includes(name)) {
-                    names.splice(index, 1);
-                }
-            } else if (enemy) {
-                if (ENEMIES.includes(name)) {
-                    names.splice(index, 1);
-                }
-            } else if (squad) {
-                if (SQUAD.includes(name)) {
-                    names.splice(index, 1);
-                }
-            } else {
-                if (USERS.includes(name)) {
-                    names.splice(index, 1);
-                }
+            if (USERS.some((i) => i.name == name)) {
+                names.splice(index, 1);
             }
         });
         if (names.length == 0) {
             msgData.channel.send(`No users added`);
             return;
         }
-        if (ally) {
-            ALLIES.push(...names);
-            msgData.channel.send(`Added ${names} to allies`);
-        } else if (enemy) {
-            ENEMIES.push(...names);
-            msgData.channel.send(`Added ${names} to enemies`);
-        } else if (squad) {
-            SQUAD.push(...names);
-            msgData.channel.send(`Added ${names} to squad`);
-        } else {
-            USERS.push(...names);
-            msgData.channel.send(`Added ${names}`);
-        }
-        save();
+
+        names.forEach((name) => {
+            let user = new User();
+            user.name = name;
+            user.type = type;
+            user.updateID()
+                .then((results) => {
+                    if (user.id == 0) {
+                        user.status = "1";
+                        pending.push(user);
+                    } else {
+                        USERS.push(user);
+                        save();
+                    }
+                    msgData.channel.send(`Added ${names} to ${type}`);
+                    save();
+                    needClear = true;
+                    if (CONFIG.active) checker();
+                    return;
+                })
+                .catch((err) => {
+                    msgData.channel.send(`There was a problem adding user`);
+                });
+        });
         needClear = true;
+        return;
     }
 
     if (msg == "!list") {
         let returnMsg = "";
-        if (USERS.length == 0 && ALLIES.length == 0 && ENEMIES.length == 0 && SQUAD.length == 0) {
+        if (USERS.length == 0) {
             msgData.channel.send("No users added. Use: !add [username], [username], [username]");
             return;
         }
-        SQUAD.forEach((name) => {
-            returnMsg += name + ", ";
+        USERS.forEach((user) => {
+            returnMsg += user.name + ", ";
         });
-        ALLIES.forEach((name) => {
-            returnMsg += name + ", ";
-        });
-        ENEMIES.forEach((name) => {
-            returnMsg += name + ", ";
-        });
-        USERS.forEach((name) => {
-            returnMsg += name + ", ";
-        });
-        msgData.channel.send(returnMsg);
+        msgData.channel.send(returnMsg.slice(0, returnMsg.length - 2));
         needClear = true;
     }
 
     if (msg.substr(0, 7) == "!remove") {
-        if (USERS.length == 0 && ALLIES.length == 0 && ENEMIES.length == 0 && SQUAD.length == 0) {
-            msgData.channel.send("No users added. Use: !add [username], [username], [username]");
+        var removed = "";
+        if (USERS.length == 0) {
+            msgData.channel.send("No users have been added yet. Use: !add [username], [username], [username]");
             return;
         }
         if (msg.substr(8) == "all") {
             USERS = [];
-            ENEMIES = [];
-            ALLIES = [];
             save();
             msgData.channel.send("Removed all users");
             return;
         }
+
         let names = msg.split(",");
-        let removed = [];
         names[0] = names[0].substr(7);
-        names.forEach((name) => {
-            name = name.trim();
-            USERS.forEach((username, index) => {
-                if (username.includes(name)) {
-                    USERS.splice(index, 1);
-                    removed.push(name);
-                }
-            });
-            SQUAD.forEach((username, index) => {
-                if (username.includes(name)) {
-                    SQUAD.splice(index, 1);
-                    removed.push(name);
-                }
-            });
-            ENEMIES.forEach((username, index) => {
-                if (username.includes(name)) {
-                    ENEMIES.splice(index, 1);
-                    removed.push(name);
-                }
-            });
-            ALLIES.forEach((username, index) => {
-                if (username.includes(name)) {
-                    ALLIES.splice(index, 1);
-                    removed.push(name);
-                }
+        let removal = new Promise((resolve, reject) => {
+            names.forEach((name, index) => {
+                name = name.trim().toLowerCase();
+                USERS.forEach((user, i) => {
+                    if (user.name == name) {
+                        USERS.splice(i, 1);
+                        removed += `${name}, `;
+                    }
+                });
+                pending.forEach((user, j) => {
+                    if (user.name == name) {
+                        pending.splice(j, 1);
+                        removed += `${name}, `;
+                    }
+                });
+                if (index == names.length - 1) resolve();
             });
         });
-        save();
-        if (removed.length == 0) {
-            msgData.channel.send("No one removed");
-        } else {
-            msgData.channel.send(`Removed ${removed}`);
-        }
-        needClear = true;
+
+        removal.then(() => {
+            if (removed == "") {
+                msgData.channel.send("No one removed");
+            } else {
+                msgData.channel.send(`Removed ${removed}`);
+            }
+            save();
+            needClear = true;
+            if (CONFIG.active) checker();
+        });
     }
 
     if (msg == "!config") {
@@ -308,7 +332,7 @@ client.on("message", (msg) => {
     }
 
     if (msg == "!start") {
-        if (USERS.length == 0 && ALLIES.length == 0 && ENEMIES.length == 0 && SQUAD.length == 0) {
+        if (USERS.length == 0) {
             msgData.channel.send("No users added. Use: !add [username], [username], [username]");
             return;
         }
@@ -321,6 +345,7 @@ client.on("message", (msg) => {
         checker();
         loop = setInterval(checker, CONFIG.time);
     }
+
     if (msg == "!stop") {
         if (CONFIG.active == false) {
             msgData.channel.send("Already stopped");
@@ -339,311 +364,125 @@ client.on("message", (msg) => {
     }
 });
 
-client.login(BOT.token);
+async function userInitialization() {
+    for (var i = 0; i < userData.length; i++) {
+        user = userData[i];
+        k = new User();
+        k.name = user.name;
+        k.id = user.id;
+        k.online = user.online;
+        k.type = user.type;
+        k.status = user.status;
+        await k.updateOnlineStatus().then((result) => {
+            USERS.push(k);
+            if (i == userData.length - 1) return;
+        });
+    }
+}
+
+console.log("Initializing Users");
+userInitialization().then(() => {
+    console.log("Users Initialized");
+    client.login(BOT.token);
+});
 // --------------------------------------------FUNCTIONS---------------------------------------
 
 function checker() {
-    getOnlineStatus(CONFIG.url).then(() => {
-        if (needClear && updateMessage != "") {
-            updateMessage.delete().then().catch(console.error);
-            updateMessage = "";
-            update = true;
-            needClear = false;
-        }
-        if (update) {
-            let date = new Date();
-            let msg =
-                "https://www.battlemetrics.com/servers/rust/" +
-                CONFIG.battlemetrics +
-                "\n```diff\nLAST UPDATE " +
-                date.getHours() +
-                ":" +
-                date.getMinutes() +
-                ":" +
-                date.getSeconds() +
-                "\n\n";
-
-            if (SQUAD.length != 0) {
-                msg += "SQUAD: \n";
-            }
-            SQUAD.forEach((name) => {
-                if (ONLINE.includes(name)) {
-                    msg += "+ " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "online") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("ONLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
+    if (pending.length > 0) {
+        pending.forEach((user, index) => {
+            user.updateID().then((results) => {
+                if (user.id == 0) {
+                    user.status = "1";
                 } else {
-                    msg += "- " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "offline") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("OFFLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
+                    pending.splice(index, 1);
+                    USERS.push(user);
+                    save();
+                    update = true;
                 }
             });
+        });
+    }
 
-            if (SQUAD.length != 0) {
-                msg += "\n";
+    if (needClear && updateMessage != "") {
+        updateMessage.delete().then().catch(console.error);
+        updateMessage = "";
+        update = true;
+        needClear = false;
+    }
+
+    USERS.forEach((user) => {
+        user.updateOnlineStatus().then((result) => {
+            if (result > 0) {
+                update = true;
             }
-
-            if (ALLIES.length != 0) {
-                msg += "ALLIES: \n";
-            }
-            ALLIES.forEach((name) => {
-                if (ONLINE.includes(name)) {
-                    msg += "+ " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "online") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("ONLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
-                } else {
-                    msg += "- " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "offline") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("OFFLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
-                }
-            });
-
-            if (ALLIES.length != 0) {
-                msg += "\n";
-            }
-
-            if (ENEMIES.length != 0) {
-                msg += "ENEMIES: \n";
-            }
-            ENEMIES.forEach((name) => {
-                if (ONLINE.includes(name)) {
-                    msg += "+ " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "online") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("ONLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
-                } else {
-                    msg += "- " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "offline") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("OFFLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
-                }
-            });
-
-            if (ENEMIES.length != 0) {
-                msg += "\n";
-            }
-
-            msg += "OTHERS:\n";
-
-            USERS.forEach((name) => {
-                if (ONLINE.includes(name)) {
-                    msg += "+ " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "online") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("ONLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
-                } else {
-                    msg += "- " + name.toUpperCase() + "\n";
-                    if (CONFIG.alert == "offline") {
-                        client.channels.cache
-                            .get(CONFIG.channelId)
-                            .send("OFFLINE UPDATE")
-                            .then((upMsg) => upMsg.delete().catch(console.error));
-                    }
-                }
-            });
-            msg += "\n```";
-
-            if (updateMessage == "") {
-                client.channels.cache
-                    .get(CONFIG.channelId)
-                    .send(msg)
-                    .then((upMsg) => (updateMessage = upMsg));
-            } else {
-                updateMessage.edit(msg);
-            }
-            update = false;
-
-            if (CONFIG.alert == "most") {
-                client.channels.cache
-                    .get(CONFIG.channelId)
-                    .send("UPDATE")
-                    .then((upMsg) => upMsg.delete().catch(console.error));
-            }
-        }
-        return;
+        });
     });
+
+    if (update) {
+        let date = new Date();
+        let msg =
+            "https://www.battlemetrics.com/servers/rust/" +
+            CONFIG.battlemetrics +
+            "\n```diff\nLAST UPDATE " +
+            date.getHours() +
+            ":" +
+            date.getMinutes() +
+            ":" +
+            date.getSeconds() +
+            "\n\n";
+
+        let squadMsg = "";
+        let enemiesMsg = "";
+        let otherMsg = "";
+        let alliesMsg = "";
+        let pendingMsg = "";
+
+        USERS.forEach((user) => {
+            let addition;
+            if (user.online) addition = "+ ";
+            if (!user.online) addition = "- ";
+            if (user.type == "other") otherMsg += `${addition}${user.name.toUpperCase()}\n`;
+            if (user.type == "squad") squadMsg += `${addition}${user.name.toUpperCase()}\n`;
+            if (user.type == "ally") alliesMsg += `${addition}${user.name.toUpperCase()}\n`;
+            if (user.type == "enemy") enemiesMsg += `${addition}${user.name.toUpperCase()}\n`;
+        });
+
+        if (pending.length > 0) {
+            pending.forEach((u) => {
+                pendingMsg += `- ${u.name}\n`;
+            });
+        }
+
+        if (squadMsg != "") msg += `SQUAD: \n${squadMsg}\n`;
+        if (enemiesMsg != "") msg += `ENEMIES: \n${enemiesMsg}\n`;
+        if (alliesMsg != "") msg += `ALLIES: \n${alliesMsg}\n`;
+        if (otherMsg != "") msg += `OTHERS: \n${otherMsg}\n`;
+        if (pendingMsg != "") msg += `PENDING (Cannot verify that user has been on server): \n${pendingMsg}\n`;
+        msg += "\n```";
+
+        if (updateMessage == "") {
+            client.channels.cache
+                .get(CONFIG.channelId)
+                .send(msg)
+                .then((upMsg) => {
+                    updateMessage = upMsg;
+                });
+        } else {
+            updateMessage.edit(msg);
+        }
+
+        if (CONFIG.alert == "most") {
+            client.channels.cache
+                .get(CONFIG.channelId)
+                .send("UPDATE")
+                .then((upMsg) => upMsg.delete().catch(console.error));
+        }
+    }
+    update = false;
+    return;
 }
 
 async function clear(msg) {
     const fetched = await msg.channel.messages.fetch({ limit: 99 });
     msg.channel.bulkDelete(fetched).then().catch(console.error);
-}
-
-function getMetrics(serverID) {
-    if (serverID == undefined) {
-        if (CONFIG.battlemetrics == undefined) {
-            return false;
-        } else {
-            serverID = CONFIG.battlemetrics;
-        }
-    }
-
-    var data = "";
-
-    var config = {
-        method: "get",
-        url: `https://api.battlemetrics.com/servers/${serverID}?include=player`,
-        headers: {
-            Authorization: BOT.api_auth_key,
-        },
-        data: data,
-    };
-    return new Promise((resolve) => {
-        axios(config)
-            .then((response) => {
-                resolve(response.data);
-            })
-            .catch((err) => {
-                return false;
-            });
-    });
-}
-
-function getOnlineStatus(serverID) {
-    if (serverID == undefined) {
-        if (CONFIG.battlemetrics == undefined) {
-            return false;
-        } else {
-            serverID = CONFIG.battlemetrics;
-        }
-    }
-    return new Promise((resolve) => {
-        getMetrics(serverID)
-            .then((data) => {
-                data = data.included;
-                USERS.forEach((name) => {
-                    let nameFound = false;
-                    for (let i = 0; i < data.length; i++) {
-                        let users = data[i];
-                        if (users.attributes.name.toLowerCase().includes(name)) {
-                            if (!ONLINE.includes(name)) {
-                                ONLINE.push(name);
-                                nameFound = true;
-                                update = true;
-                                break;
-                            } else {
-                                nameFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (ONLINE.includes(name) && !nameFound) {
-                        ONLINE.forEach((username, index) => {
-                            if (name == username) {
-                                ONLINE.splice(index, 1);
-                                update = true;
-                            }
-                        });
-                    }
-                });
-
-                SQUAD.forEach((name) => {
-                    let nameFound = false;
-                    for (let i = 0; i < data.length; i++) {
-                        let users = data[i];
-                        if (users.attributes.name.toLowerCase().includes(name)) {
-                            if (!ONLINE.includes(name)) {
-                                ONLINE.push(name);
-                                nameFound = true;
-                                update = true;
-                                break;
-                            } else {
-                                nameFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (ONLINE.includes(name) && !nameFound) {
-                        ONLINE.forEach((username, index) => {
-                            if (name == username) {
-                                ONLINE.splice(index, 1);
-                                update = true;
-                            }
-                        });
-                    }
-                });
-
-                ALLIES.forEach((name) => {
-                    let nameFound = false;
-                    for (let i = 0; i < data.length; i++) {
-                        let users = data[i];
-                        if (users.attributes.name.toLowerCase().includes(name)) {
-                            if (!ONLINE.includes(name)) {
-                                ONLINE.push(name);
-                                nameFound = true;
-                                update = true;
-                                break;
-                            } else {
-                                nameFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (ONLINE.includes(name) && !nameFound) {
-                        ONLINE.forEach((username, index) => {
-                            if (name == username) {
-                                ONLINE.splice(index, 1);
-                                update = true;
-                            }
-                        });
-                    }
-                });
-
-                ENEMIES.forEach((name) => {
-                    let nameFound = false;
-                    for (let i = 0; i < data.length; i++) {
-                        let users = data[i];
-                        if (users.attributes.name.toLowerCase().includes(name)) {
-                            if (!ONLINE.includes(name)) {
-                                ONLINE.push(name);
-                                nameFound = true;
-                                update = true;
-                                break;
-                            } else {
-                                nameFound = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (ONLINE.includes(name) && !nameFound) {
-                        ONLINE.forEach((username, index) => {
-                            if (name == username) {
-                                ONLINE.splice(index, 1);
-                                update = true;
-                            }
-                        });
-                    }
-                });
-
-                resolve(true);
-            })
-
-            .catch((err) => {
-                console.log(err);
-            });
-    });
 }
