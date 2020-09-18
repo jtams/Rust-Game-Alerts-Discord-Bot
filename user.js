@@ -17,7 +17,7 @@ class User {
         var data = qs.stringify({});
         var config = {
             method: "get",
-            url: "https://api.battlemetrics.com/players/961714222/",
+            url: `https://api.battlemetrics.com/players/${this.id}}`,
             headers: {
                 Authorization: BOT.api_auth_key,
             },
