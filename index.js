@@ -35,10 +35,12 @@ if (!fs.existsSync("./configs/bot.json")) {
 const Discord = require("discord.js");
 const axios = require("axios");
 const qs = require("qs");
+const { verify } = require("crypto");
 
 let USERS = [];
 let pending = [];
 
+var onlineCount;
 var update = true;
 var updateMessage = "";
 var needClear = false;
@@ -242,31 +244,48 @@ client.on("message", (msg) => {
             return;
         }
 
-        names.forEach((name) => {
-            let user = new User();
-            user.name = name;
-            user.type = type;
-            user.updateID()
-                .then((results) => {
-                    if (user.id == 0) {
-                        user.status = "1";
-                        pending.push(user);
-                    } else {
-                        USERS.push(user);
-                        save();
-                    }
-                    msgData.channel.send(`Added ${names} to ${type}`);
-                    save();
-                    needClear = true;
-                    if (CONFIG.active) checker();
-                    return;
-                })
-                .catch((err) => {
-                    msgData.channel.send(`There was a problem adding user`);
-                });
+        added = [];
+        addedPending = [];
+        verifyUsers = new Promise((resolve, reject) => {
+            names.forEach((name, index) => {
+                let user = new User();
+                user.name = name;
+                user.type = type;
+                user.updateID()
+                    .then((results) => {
+                        if (user.id == 0) {
+                            user.status = "1";
+                            pending.push(user);
+                            addedPending.push(user.name);
+                        } else {
+                            USERS.push(user);
+                            added.push(user.name);
+                            save();
+                        }
+                        if (added.length + addedPending.length == names.length) {
+                            resolve();
+                        }
+                    })
+                    .catch((err) => {
+                        msgData.channel.send(`There was a problem adding user`);
+                        needClear = true;
+                        reject();
+                    });
+            });
         });
-        needClear = true;
-        return;
+        verifyUsers.then(() => {
+            if (added.length > 0) {
+                msgData.channel.send(`Added ${added} to ${type}`);
+            }
+            if (addedPending.length > 0) {
+                msgData.channel.send(
+                    `Added ${addedPending} to pending (I can't identify them on the server currently. This means they are offline or their name is spelt incorrectly. Once they get online; they will be verified and moved from pending.)`
+                );
+            }
+            needClear = true;
+            if (CONFIG.active) checker();
+            return;
+        });
     }
 
     if (msg == "!list") {
@@ -336,12 +355,13 @@ client.on("message", (msg) => {
     }
 
     if (msg == "!start") {
-        if (USERS.length == 0) {
+        if (USERS.length == 0 && pending.length == 0) {
             msgData.channel.send("No users added. Use: !add [username], [username], [username]");
             return;
         }
         needClear = false;
         clear(msgData);
+        currentOnline = onlineCount;
         CONFIG.active = true;
         save();
         msgData.channel.send(`STATUS: ACTIVE`);
@@ -391,99 +411,133 @@ userInitialization().then(() => {
 });
 // --------------------------------------------FUNCTIONS---------------------------------------
 
+var onlineCount = 0;
 function checker() {
-    if (pending.length > 0) {
-        pending.forEach((user, index) => {
-            user.updateID().then((results) => {
-                if (user.id == 0) {
-                    user.status = "1";
-                } else {
-                    pending.splice(index, 1);
-                    USERS.push(user);
-                    save();
+    checkPlayerCount().then((res, err) => {
+        if (onlineCount != res) {
+            update = true;
+            onlineCount = res;
+        }
+
+        if (pending.length > 0) {
+            pending.forEach((user, index) => {
+                user.updateID().then((results) => {
+                    if (user.id == 0) {
+                        user.status = "1";
+                    } else {
+                        pending.splice(index, 1);
+                        USERS.push(user);
+                        save();
+                        update = true;
+                    }
+                });
+            });
+        }
+
+        if (needClear && updateMessage != "") {
+            updateMessage.delete().then().catch(console.error);
+            updateMessage = "";
+            update = true;
+            needClear = false;
+        }
+
+        USERS.forEach((user) => {
+            user.updateOnlineStatus().then((result) => {
+                if (result > 0) {
                     update = true;
                 }
             });
         });
-    }
 
-    if (needClear && updateMessage != "") {
-        updateMessage.delete().then().catch(console.error);
-        updateMessage = "";
-        update = true;
-        needClear = false;
-    }
+        if (update) {
+            let date = new Date();
+            let msg =
+                "https://www.battlemetrics.com/servers/rust/" +
+                CONFIG.battlemetrics +
+                "\n```diff\nLAST UPDATE " +
+                date.getHours() +
+                ":" +
+                date.getMinutes() +
+                ":" +
+                date.getSeconds() +
+                "\n\nCURRENTLY ONLINE: " +
+                onlineCount +
+                "\n\n";
 
-    USERS.forEach((user) => {
-        user.updateOnlineStatus().then((result) => {
-            if (result > 0) {
-                update = true;
-            }
-        });
-    });
+            let squadMsg = "";
+            let enemiesMsg = "";
+            let otherMsg = "";
+            let alliesMsg = "";
+            let pendingMsg = "";
 
-    if (update) {
-        let date = new Date();
-        let msg =
-            "https://www.battlemetrics.com/servers/rust/" +
-            CONFIG.battlemetrics +
-            "\n```diff\nLAST UPDATE " +
-            date.getHours() +
-            ":" +
-            date.getMinutes() +
-            ":" +
-            date.getSeconds() +
-            "\n\n";
-
-        let squadMsg = "";
-        let enemiesMsg = "";
-        let otherMsg = "";
-        let alliesMsg = "";
-        let pendingMsg = "";
-
-        USERS.forEach((user) => {
-            let addition;
-            if (user.online) addition = "+ ";
-            if (!user.online) addition = "- ";
-            if (user.type == "other") otherMsg += `${addition}${user.name.toUpperCase()}\n`;
-            if (user.type == "squad") squadMsg += `${addition}${user.name.toUpperCase()}\n`;
-            if (user.type == "ally") alliesMsg += `${addition}${user.name.toUpperCase()}\n`;
-            if (user.type == "enemy") enemiesMsg += `${addition}${user.name.toUpperCase()}\n`;
-        });
-
-        if (pending.length > 0) {
-            pending.forEach((u) => {
-                pendingMsg += `- ${u.name}\n`;
+            USERS.forEach((user) => {
+                let addition;
+                if (user.online) addition = "+ ";
+                if (!user.online) addition = "- ";
+                if (user.type == "other") otherMsg += `${addition}${user.name.toUpperCase()}\n`;
+                if (user.type == "squad") squadMsg += `${addition}${user.name.toUpperCase()}\n`;
+                if (user.type == "ally") alliesMsg += `${addition}${user.name.toUpperCase()}\n`;
+                if (user.type == "enemy") enemiesMsg += `${addition}${user.name.toUpperCase()}\n`;
             });
-        }
 
-        if (squadMsg != "") msg += `SQUAD: \n${squadMsg}\n`;
-        if (enemiesMsg != "") msg += `ENEMIES: \n${enemiesMsg}\n`;
-        if (alliesMsg != "") msg += `ALLIES: \n${alliesMsg}\n`;
-        if (otherMsg != "") msg += `OTHERS: \n${otherMsg}\n`;
-        if (pendingMsg != "") msg += `PENDING (Cannot verify that user has been on server): \n${pendingMsg}\n`;
-        msg += "\n```";
-
-        if (updateMessage == "") {
-            client.channels.cache
-                .get(CONFIG.channelId)
-                .send(msg)
-                .then((upMsg) => {
-                    updateMessage = upMsg;
+            if (pending.length > 0) {
+                pending.forEach((u) => {
+                    pendingMsg += `- ${u.name}\n`;
                 });
-        } else {
-            updateMessage.edit(msg);
-        }
+            }
 
-        if (CONFIG.alert == "most") {
-            client.channels.cache
-                .get(CONFIG.channelId)
-                .send("UPDATE")
-                .then((upMsg) => upMsg.delete().catch(console.error));
+            if (squadMsg != "") msg += `SQUAD: \n${squadMsg}\n`;
+            if (enemiesMsg != "") msg += `ENEMIES: \n${enemiesMsg}\n`;
+            if (alliesMsg != "") msg += `ALLIES: \n${alliesMsg}\n`;
+            if (otherMsg != "") msg += `OTHERS: \n${otherMsg}\n`;
+            if (pendingMsg != "") msg += `PENDING (Verifying user on server. If you typed the name correctly; they're offline): \n${pendingMsg}\n`;
+            msg += "\n```";
+
+            if (updateMessage == "") {
+                client.channels.cache
+                    .get(CONFIG.channelId)
+                    .send(msg)
+                    .then((upMsg) => {
+                        updateMessage = upMsg;
+                    });
+            } else {
+                updateMessage.edit(msg);
+            }
+
+            if (CONFIG.alert == "most") {
+                client.channels.cache
+                    .get(CONFIG.channelId)
+                    .send("UPDATE")
+                    .then((upMsg) => upMsg.delete().catch(console.error));
+            }
         }
-    }
-    update = false;
-    return;
+        update = false;
+        return;
+    });
+}
+
+function checkPlayerCount(metrics = CONFIG.battlemetrics) {
+    return new Promise((resolve, reject) => {
+        var data = "";
+
+        var config = {
+            method: "get",
+            url: `https://api.battlemetrics.com/servers/${metrics}?include=player`,
+            headers: {
+                Authorization: BOT.api_auth_key,
+            },
+            data: data,
+        };
+
+        axios(config)
+            .then((response) => {
+                resolve(response.data.included.length);
+            })
+            .catch((err) => {
+                console.log("Error getting player count");
+                reject(err);
+            });
+    });
 }
 
 async function clear(msg) {
