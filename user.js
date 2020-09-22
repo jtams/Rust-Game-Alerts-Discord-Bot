@@ -52,7 +52,6 @@ class User {
             axios(config)
                 .then((response) => {
                     data = response.data.included;
-
                     for (let i = 0; i < data.length; i++) {
                         var current = data[i].attributes;
                         if (current.name.toLowerCase() == this.name) {
@@ -91,6 +90,7 @@ class User {
                 Authorization: BOT.api_auth_key,
             },
             data: data,
+            timeout: 6000,
         };
 
         var current = this;
