@@ -1,12 +1,16 @@
 const fs = require("fs");
 
-CONFIG = { setup: "not complete", active: false, channelId: null, channelName: null, battlemetrics: null, time: 10000, alert: "least" };
-BOT = { token: "PASTE YOUR DISCORD BOT TOKEN HERE", api_auth_key: "PASTE YOUR BATTLEMETRICS API KEY HERE" };
-userData = [];
+if (!fs.existsSync("./configs")) fs.mkdirSync("./configs");
 
-if (!fs.existsSync("./configs")) {
-    fs.mkdirSync("./configs");
-}
+CONFIG = {
+    setup: "not complete",
+    active: false,
+    channelId: "0",
+    channelName: null,
+    battlemetrics: 0000000,
+    time: 10000,
+    alert: "least",
+};
 
 if (!fs.existsSync("./configs/config.json")) {
     fs.writeFileSync("./configs/config.json", JSON.stringify(CONFIG));
@@ -454,12 +458,8 @@ function checker() {
             let msg =
                 "https://www.battlemetrics.com/servers/rust/" +
                 CONFIG.battlemetrics +
-                "\n```diff\nLAST UPDATE " +
-                date.getHours() +
-                ":" +
-                date.getMinutes() +
-                ":" +
-                date.getSeconds() +
+                "\n```diff\nLAST UPDATE: " +
+                new Date().toLocaleString("en-US", { day: "numeric", month: "numeric", hour: "numeric", minute: "numeric", hour12: true }) +
                 "\n\nCURRENTLY ONLINE: " +
                 onlineCount +
                 "\n\n";
