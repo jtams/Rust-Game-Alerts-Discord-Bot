@@ -1,6 +1,8 @@
 package tracker
 
-import "strings"
+import (
+	"strings"
+)
 
 type Group struct {
 	Name  string  `json:"name"`
@@ -26,21 +28,29 @@ func (g *Group) AddUser(username string) {
 }
 
 func (g *Group) RemoveUserByUsername(username string) bool {
+	if len(g.Users) == 0 {
+		return false
+	}
+
+	i, user := SearchUsersWithUserCreatedName(g.Users, func(u *User) string { return u.GetUsername() }, username, false, false)
+	if i > -1 && user != nil {
+		g.Users = append(g.Users[:i], g.Users[i+1:]...)
+		return true
+	}
+
+	return false
+}
+
+func (g *Group) RemoveUserByID(id string) bool {
+	if g.Users == nil || len(g.Users) == 0 {
+		return false
+	}
 	for i, user := range g.Users {
-		if user.GetUsername() == username {
+		if user.ID == id {
 			g.Users = append(g.Users[:i], g.Users[i+1:]...)
 			return true
 		}
 	}
 
 	return false
-}
-
-func (g *Group) RemoveUserByID(id string) {
-	for i, user := range g.Users {
-		if user.ID == id {
-			g.Users = append(g.Users[:i], g.Users[i+1:]...)
-			break
-		}
-	}
 }

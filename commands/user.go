@@ -3,6 +3,7 @@ package commands
 import (
 	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
+	"log"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -30,7 +31,7 @@ func UserCommand(groups []string) *discordgo.ApplicationCommand {
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
 						Name:        "username",
-						Description: "Username of the user to add",
+						Description: "Username(s) of the user(s) to add. Seperate multiple with commas",
 						Required:    true,
 					},
 					{
@@ -51,8 +52,15 @@ func UserCommand(groups []string) *discordgo.ApplicationCommand {
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
 						Name:        "username",
-						Description: "Username of the user to remove",
+						Description: "Username(s) of the user(s) to remove",
 						Required:    true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "group",
+						Description: "Group to remove the user from, if not provided will remove from all groups",
+						Required:    false,
+						Choices:     groupChoices,
 					},
 				},
 			},
@@ -82,14 +90,24 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 		case "add":
 			options = options[0].Options
 			username := findOptionByName("username", options).StringValue()
-			groupName := findOptionByName("group", options).StringValue()
+			groupNameRaw := findOptionByName("group", options)
+			groupName := ""
+			if groupNameRaw != nil {
+				groupName = groupNameRaw.StringValue()
+			}
 			groupName = strings.ToLower(groupName)
 			res = addUser(playerTracker, username, groupName)
 			break
 		case "remove":
 			options = options[0].Options
 			username := findOptionByName("username", options).StringValue()
-			res = removeUser(playerTracker, username)
+			groupNameRaw := findOptionByName("group", options)
+			groupName := ""
+			if groupNameRaw != nil {
+				groupName = groupNameRaw.StringValue()
+			}
+			groupName = strings.ToLower(groupName)
+			res = removeUser(playerTracker, username, groupName)
 		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -109,18 +127,49 @@ func addUser(playerTracker *tracker.PlayerTracker, username string, groupName st
 		groupName = "others"
 	}
 
-	err := playerTracker.AddUserToGroup(username, groupName)
-	if err != nil {
-		return "Error adding user to group"
+	failed := []string{}
+
+	usernames := strings.Split(username, ",")
+	for _, username := range usernames {
+		username = strings.TrimSpace(username)
+		err := playerTracker.AddUserToGroup(username, groupName)
+		if err != nil {
+			failed = append(failed, username)
+			return "Error adding user to group"
+		}
 	}
 
-	return "User added to group"
+	if len(failed) == 0 {
+		return "User(s) added"
+	}
+
+	joined := strings.Join(failed, ", ")
+	return "Failed to add user(s): " + joined
 }
 
-func removeUser(playerTracker *tracker.PlayerTracker, username string) string {
-	if playerTracker.RemoveUserByUsername(username) {
-		return "User removed"
-	} else {
-		return "User not found"
+func removeUser(playerTracker *tracker.PlayerTracker, username string, groupName string) string {
+	users := strings.Split(username, ",")
+	log.Println("Removing users", users, "from group", groupName)
+
+	failed := []string{}
+
+	for _, user := range users {
+		user = strings.TrimSpace(user)
+		if groupName == "" {
+			if !playerTracker.RemoveUserByUsername(user) {
+				failed = append(failed, user)
+			}
+		} else {
+			if !playerTracker.RemoveUserByUsernameAndGroup(user, groupName) {
+				failed = append(failed, user)
+			}
+		}
 	}
+
+	if len(failed) == 0 {
+		return "User(s) removed"
+	}
+
+	joined := strings.Join(failed, ", ")
+	return "Failed to remove user(s): " + joined
 }

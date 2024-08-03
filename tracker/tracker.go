@@ -77,11 +77,23 @@ func (tracker *PlayerTracker) AddUserToGroup(username string, groupName string) 
 }
 
 func (tracker *PlayerTracker) RemoveUserByUsername(username string) bool {
+	deleted := 0
 	for _, group := range tracker.Groups {
-		return group.RemoveUserByUsername(username)
+		if group.RemoveUserByUsername(username) {
+			deleted++
+		}
 	}
 
-	return false
+	return deleted > 0
+}
+
+func (tracker *PlayerTracker) RemoveUserByUsernameAndGroup(username string, groupName string) bool {
+	groupName = strings.ToLower(groupName)
+	group := tracker.GetGroupByName(groupName)
+	if group == nil {
+		return false
+	}
+	return group.RemoveUserByUsername(username)
 }
 
 func (tracker *PlayerTracker) GetGroupByName(name string) *Group {
@@ -130,115 +142,6 @@ func (tracker *PlayerTracker) Loop() {
 	}
 }
 
-// Finds a user by username
-// Todo: Do search in a single loop
-func (tracker *PlayerTracker) GetUserByName(username string, exact bool, casesensitive bool) *User {
-	users := tracker.Users()
-	var matchedUser *User
-	lowerUsername := strings.ToLower(username)
-
-	// Exact match
-	for _, user := range users {
-		if user.GetUsername() == username {
-			return user
-		}
-	}
-
-	// Case insensitive exact match
-	for _, user := range users {
-		if strings.ToLower(user.GetUsername()) == lowerUsername {
-			return user
-		}
-	}
-
-	// Match the start of the name
-	for _, user := range users {
-		if strings.HasPrefix(user.GetUsername(), username) {
-			return user
-		}
-	}
-
-	// Case insensitive match the start of the name
-	for _, user := range users {
-		if strings.HasPrefix(strings.ToLower(user.GetUsername()), lowerUsername) {
-			return user
-		}
-	}
-
-	// Substring match (more than 5 characters)
-	for _, user := range users {
-		if len(username) > 5 && strings.Contains(user.GetUsername(), username) {
-			return user
-		}
-	}
-
-	// Case insensitive substring match (more than 5 characters)
-	for _, user := range users {
-		if len(username) > 5 && strings.Contains(strings.ToLower(user.GetUsername()), lowerUsername) {
-			return user
-		}
-	}
-
-	return matchedUser
-}
-
-// Todo: Do search in a single loop
-func MatchUserToBattleMetricsPlayer(user *User, bm BattleMetricsResponse, exact bool, casesensitive bool) *Player {
-	players := bm.Included
-	username := user.GetUsername()
-	lowerUsername := strings.ToLower(username)
-
-	for _, player := range players {
-		if player.ID == user.ID {
-			return &player
-		}
-	}
-
-	// Exact match
-	for _, player := range players {
-		if player.Attributes.Name == username {
-			return &player
-		}
-	}
-
-	// Case insensitive exact match
-	for _, player := range players {
-		if strings.ToLower(player.Attributes.Name) == lowerUsername {
-			return &player
-		}
-	}
-
-	// Match the start of the name
-	for _, player := range players {
-		if strings.HasPrefix(player.Attributes.Name, username) {
-			return &player
-		}
-	}
-
-	// Case insensitive match the start of the name
-	for _, player := range players {
-		if strings.HasPrefix(strings.ToLower(player.Attributes.Name), lowerUsername) {
-			return &player
-		}
-	}
-
-	// Substring match (more than 5 characters)
-	for _, player := range players {
-		if len(username) > 5 && strings.Contains(player.Attributes.Name, username) {
-			return &player
-		}
-	}
-
-	// Case insensitive substring match (more than 5 characters)
-	for _, player := range players {
-		if len(username) > 5 && strings.Contains(strings.ToLower(player.Attributes.Name), lowerUsername) {
-			return &player
-		}
-	}
-
-	return nil
-}
-
 func (tracker *PlayerTracker) GetUserByID(id string) *User {
 	users := tracker.Users()
 	for _, user := range users {
@@ -249,6 +152,7 @@ func (tracker *PlayerTracker) GetUserByID(id string) *User {
 	return nil
 }
 
+// Fetches data from Battle Metrics and updates tracker with up to date information
 func (tracker *PlayerTracker) Update() {
 	// URL: https://api.battlemetrics.com/servers/10519728?include=player
 	resp, err := http.Get(fmt.Sprintf("https://api.battlemetrics.com/servers/%s?include=player", tracker.BattleMetricsID))
@@ -279,7 +183,8 @@ func (tracker *PlayerTracker) Update() {
 		var player *Player
 
 		// Find player in BattleMetrics
-		player = MatchUserToBattleMetricsPlayer(user, bmRes, false, false)
+		// player = MatchUserToBattleMetricsPlayer(user, bmRes, false, false)
+		_, player = SearchUsersWithUserCreatedName(bmRes.Included, func(p Player) string { return p.Attributes.Name }, user.GetUsername(), false, false)
 
 		// If found, update status
 		if player != nil {
@@ -296,8 +201,4 @@ func (tracker *PlayerTracker) Update() {
 	}
 
 	return
-}
-
-func (tracker *PlayerTracker) Save() {
-
 }
