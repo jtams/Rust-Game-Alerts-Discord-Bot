@@ -32,6 +32,10 @@ func addHandlers(discord *discordgo.Session, registry bot.CommandRegistry, track
 		log.Println(err)
 	}
 
+	if err := registry.AddCommand(*commands.GroupCommand(), commands.GroupHandler(messageUpdater, tracker, registry)); err != nil {
+		log.Println(err)
+	}
+
 	groups := []string{}
 	for _, group := range tracker.Groups {
 		groups = append(groups, group.Name)

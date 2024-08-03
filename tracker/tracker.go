@@ -55,14 +55,15 @@ func (tracker *PlayerTracker) AddNewGroup(name string) error {
 	return tracker.AddGroup(newGroup)
 }
 
-func (tracker *PlayerTracker) RemoveGroup(groupName string) {
+func (tracker *PlayerTracker) RemoveGroup(groupName string) bool {
 	groupName = strings.ToLower(groupName)
 	for i, group := range tracker.Groups {
 		if group.Name == groupName {
 			tracker.Groups = append(tracker.Groups[:i], tracker.Groups[i+1:]...)
-			break
+			return true
 		}
 	}
+	return false
 }
 
 func (tracker *PlayerTracker) AddUserToGroup(username string, groupName string) error {

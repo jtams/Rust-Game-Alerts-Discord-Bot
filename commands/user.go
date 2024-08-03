@@ -5,6 +5,7 @@ import (
 	"jtams/playertrackerbot/tracker"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -117,6 +118,9 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
+
+		// Immediately update the player tracker
+		playerTracker.Channel <- time.Now()
 
 		return nil
 	}
