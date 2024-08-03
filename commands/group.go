@@ -63,6 +63,12 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 		}
 
 		var res string
+		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Flags: discordgo.MessageFlagsEphemeral,
+			},
+		})
 
 		switch options[0].Name {
 		case "add":
@@ -86,13 +92,13 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 			res = removeGroup(playerTracker, groupName, messageTracker, registry)
 		}
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: res,
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
+		_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+			Content: res,
 		})
+
+		if err != nil {
+			log.Println(err)
+		}
 
 		return nil
 	}
