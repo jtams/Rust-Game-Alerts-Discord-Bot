@@ -71,7 +71,15 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 				playerList += fmt.Sprintf("%s %s\n", symbol, name)
 			}
 
-			content += fmt.Sprintf("══════════════ %s ══════════════\n", strings.ToUpper(group.Name))
+			dividerCount := 20 - len(group.Name)/2
+			divider1 := strings.Repeat("═", dividerCount)
+			var divider2 string
+			if len(group.Name)%2 == 1 {
+				divider2 = strings.Repeat("═", dividerCount-1)
+			} else {
+				divider2 = strings.Repeat("═", dividerCount)
+			}
+			content += fmt.Sprintf("%s %s %s\n", divider1, strings.ToUpper(group.Name), divider2)
 			content += playerList + "\n"
 		}
 
