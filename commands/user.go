@@ -3,11 +3,20 @@ package commands
 import (
 	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func UserCommand() *discordgo.ApplicationCommand {
+func UserCommand(groups []string) *discordgo.ApplicationCommand {
+	groupChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(groups))
+	for i, group := range groups {
+		groupChoices[i] = &discordgo.ApplicationCommandOptionChoice{
+			Name:  group,
+			Value: group,
+		}
+	}
+
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "users",
 		Description: "manage users",
@@ -16,7 +25,7 @@ func UserCommand() *discordgo.ApplicationCommand {
 			{
 				Name:        "add",
 				Description: "Add user(s)",
-				Type:        discordgo.ApplicationCommandOptionSubCommandGroup,
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
@@ -29,6 +38,7 @@ func UserCommand() *discordgo.ApplicationCommand {
 						Name:        "group",
 						Description: "Group to add the user to",
 						Required:    false,
+						Choices:     groupChoices,
 					},
 				},
 			},
@@ -36,6 +46,7 @@ func UserCommand() *discordgo.ApplicationCommand {
 			{
 				Name:        "remove",
 				Description: "Remove user(s)",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{
 						Type:        discordgo.ApplicationCommandOptionString,
@@ -72,6 +83,7 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 			options = options[0].Options
 			username := findOptionByName("username", options).StringValue()
 			groupName := findOptionByName("group", options).StringValue()
+			groupName = strings.ToLower(groupName)
 			res = addUser(playerTracker, username, groupName)
 			break
 		case "remove":
@@ -84,6 +96,7 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: res,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 
@@ -93,7 +106,7 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 
 func addUser(playerTracker *tracker.PlayerTracker, username string, groupName string) string {
 	if groupName == "" {
-		groupName = "Others"
+		groupName = "others"
 	}
 
 	err := playerTracker.AddUserToGroup(username, groupName)

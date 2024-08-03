@@ -28,7 +28,11 @@ func addHandlers(discord *discordgo.Session, registry bot.CommandRegistry, track
 		log.Println(err)
 	}
 
-	if err := registry.AddCommand(*commands.UserCommand(), commands.UserHandler(messageUpdater, tracker)); err != nil {
+	groups := []string{}
+	for _, group := range tracker.Groups {
+		groups = append(groups, group.Name)
+	}
+	if err := registry.AddCommand(*commands.UserCommand(groups), commands.UserHandler(messageUpdater, tracker)); err != nil {
 		log.Println(err)
 	}
 
@@ -48,7 +52,7 @@ func main() {
 
 	// Optional save file
 	if os.Getenv("SAVE_FILE") == "" {
-		os.Setenv("SAVE_FILE", "saves/save_data.json")
+		os.Setenv("SAVE_FILE", "data/save_data.json")
 	}
 
 	// Create Bot
@@ -56,6 +60,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	discord.LogLevel = discordgo.LogDebug
 	discord.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)

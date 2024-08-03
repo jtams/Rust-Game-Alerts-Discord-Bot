@@ -1,5 +1,7 @@
 package tracker
 
+import "strings"
+
 type Group struct {
 	Name  string  `json:"name"`
 	Users []*User `json:"users"`
@@ -7,7 +9,7 @@ type Group struct {
 
 func NewGroup(name string) *Group {
 	return &Group{
-		Name:  name,
+		Name:  strings.ToLower(name),
 		Users: []*User{},
 	}
 }

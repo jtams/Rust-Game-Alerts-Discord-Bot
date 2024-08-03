@@ -15,6 +15,9 @@ type CommandRegistry interface {
 	// Adds command to registry
 	AddCommand(discordgo.ApplicationCommand, CommandHandler) error
 
+	// Updates existing command in registry
+	UpdateCommand(discordgo.ApplicationCommand, CommandHandler) error
+
 	// Removes command from registry
 	RemoveCommand(commandName string) error
 
@@ -53,6 +56,22 @@ func NewDefaultCommandRegistry(session *discordgo.Session, guildID string) *Defa
 func (r *DefaultCommandRegistry) AddCommand(command discordgo.ApplicationCommand, handler CommandHandler) error {
 	if _, found := r.commands[command.Name]; found {
 		return errors.New("command already registered")
+	}
+
+	cmd := CommandData{
+		name:       command.Name,
+		command:    &command,
+		handler:    handler,
+		registered: false,
+	}
+
+	r.commands[cmd.name] = &cmd
+	return nil
+}
+
+func (r *DefaultCommandRegistry) UpdateCommand(command discordgo.ApplicationCommand, handler CommandHandler) error {
+	if _, found := r.commands[command.Name]; !found {
+		return errors.New("command not found")
 	}
 
 	cmd := CommandData{

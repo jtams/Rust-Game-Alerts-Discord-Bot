@@ -72,7 +72,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			}
 
 			content += fmt.Sprintf("══════════════ %s ══════════════\n", strings.ToUpper(group.Name))
-			content += playerList
+			content += playerList + "\n"
 		}
 
 		if empty {

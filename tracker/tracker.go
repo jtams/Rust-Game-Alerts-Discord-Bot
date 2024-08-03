@@ -41,6 +41,7 @@ func NewPlayerTracker() *PlayerTracker {
 }
 
 func (tracker *PlayerTracker) AddGroup(group *Group) error {
+	group.Name = strings.ToLower(group.Name)
 	if tracker.GetGroupByName(group.Name) != nil {
 		return errors.New("group with that name already exists")
 	}
@@ -55,6 +56,7 @@ func (tracker *PlayerTracker) AddNewGroup(name string) error {
 }
 
 func (tracker *PlayerTracker) RemoveGroup(groupName string) {
+	groupName = strings.ToLower(groupName)
 	for i, group := range tracker.Groups {
 		if group.Name == groupName {
 			tracker.Groups = append(tracker.Groups[:i], tracker.Groups[i+1:]...)
@@ -64,6 +66,7 @@ func (tracker *PlayerTracker) RemoveGroup(groupName string) {
 }
 
 func (tracker *PlayerTracker) AddUserToGroup(username string, groupName string) error {
+	groupName = strings.ToLower(groupName)
 	group := tracker.GetGroupByName(groupName)
 	if group == nil {
 		return errors.New("group not found")
@@ -82,6 +85,7 @@ func (tracker *PlayerTracker) RemoveUserByUsername(username string) bool {
 }
 
 func (tracker *PlayerTracker) GetGroupByName(name string) *Group {
+	name = strings.ToLower(name)
 	for _, group := range tracker.Groups {
 		if group.Name == name {
 			return group
