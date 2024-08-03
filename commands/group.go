@@ -11,7 +11,7 @@ import (
 
 func GroupCommand() *discordgo.ApplicationCommand {
 	cmd := &discordgo.ApplicationCommand{
-		Name:        "group",
+		Name:        "groups",
 		Description: "manage groups",
 		Options: []*discordgo.ApplicationCommandOption{
 

@@ -130,14 +130,14 @@ func (r *DefaultCommandRegistry) Unregister() error {
 
 	failed := []string{}
 
-	for _, command := range r.commands {
-		if command.registered {
-			err := r.session.ApplicationCommandDelete(r.session.State.User.ID, r.guildID, command.command.ID)
-			if err != nil {
-				failed = append(failed, command.name)
-			} else {
-				command.registered = false
-			}
+	registeredCommands, err := r.session.ApplicationCommands(r.session.State.User.ID, r.guildID)
+	if err != nil {
+		return err
+	}
+	for _, v := range registeredCommands {
+		err := r.session.ApplicationCommandDelete(r.session.State.User.ID, r.guildID, v.ID)
+		if err != nil {
+			failed = append(failed, v.Name)
 		}
 	}
 
