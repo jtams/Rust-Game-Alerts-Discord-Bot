@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
 	"time"
@@ -63,18 +64,47 @@ func StartHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 			playerTracker.BattleMetricsID = battleMetricsID
 		}
 
-		message, err := s.ChannelMessageSend(i.ChannelID, "Starting...")
-		messageTracker.Message = message
+		tryEditing := func() error {
+			if messageTracker.Message != nil {
+				content := "Stopped."
+
+				msgEdit := &discordgo.MessageEdit{
+					Channel: messageTracker.Message.ChannelID,
+					ID:      messageTracker.Message.ID,
+					Content: &content,
+				}
+
+				_, err := messageTracker.Session.ChannelMessageEditComplex(msgEdit)
+				return err
+			}
+
+			return errors.New("no message to edit")
+		}
+
+		err := tryEditing()
+		if err != nil {
+			message, _ := s.ChannelMessageSend(i.ChannelID, "Starting...")
+			messageTracker.Message = message
+
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Starting...",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+		} else {
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: "Restarting...",
+					Flags:   discordgo.MessageFlagsEphemeral,
+				},
+			})
+		}
+
 		playerTracker.Channel = make(chan time.Time)
 		go messageTracker.StartTracking(playerTracker)
-
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Starting...",
-				Flags:   discordgo.MessageFlagsEphemeral,
-			},
-		})
 
 		return err
 	}

@@ -19,9 +19,15 @@ func StopCommand() *discordgo.ApplicationCommand {
 func StopHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) bot.CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if messageTracker.Message != nil {
-			if err := s.ChannelMessageDelete(messageTracker.Message.ChannelID, messageTracker.Message.ID); err == nil {
-				messageTracker.Message = nil
+			content := "Stopped."
+
+			msgEdit := &discordgo.MessageEdit{
+				Channel: messageTracker.Message.ChannelID,
+				ID:      messageTracker.Message.ID,
+				Content: &content,
 			}
+
+			messageTracker.Session.ChannelMessageEditComplex(msgEdit)
 		}
 
 		playerTracker.Stop()
@@ -30,7 +36,7 @@ func StopHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Stopped",
-				Flags:   1 << 6,
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 

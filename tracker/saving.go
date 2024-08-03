@@ -66,20 +66,7 @@ func LoadTrackerData(filename string, session *discordgo.Session) (error, *Messe
 
 	messenger := NewMessageUpdater(session)
 	messenger.Message, err = session.ChannelMessage(saveData.MessengerData.ChannelID, saveData.MessengerData.MessageID)
-	if messenger.Message == nil || err != nil {
-		log.Println("Failed to load message, creating new message")
-		channel, _ := session.Channel(saveData.MessengerData.ChannelID)
-		if channel != nil {
-			newMessage, err := session.ChannelMessageSend(saveData.MessengerData.ChannelID, "Loading...")
-			if newMessage != nil && err == nil {
-				messenger.Message = newMessage
-			} else {
-				log.Println("Failed to send message")
-			}
-		} else {
-			log.Println("Failed to resolve channel")
-		}
-	} else {
+	if messenger.Message != nil && saveData.Tracker.Running {
 		content := "Reestablishing connection..."
 		msgEdit := &discordgo.MessageEdit{
 			Channel: saveData.MessengerData.ChannelID,
@@ -88,6 +75,23 @@ func LoadTrackerData(filename string, session *discordgo.Session) (error, *Messe
 		}
 
 		messenger.Session.ChannelMessageEditComplex(msgEdit)
+	}
+
+	if messenger.Message == nil && saveData.Tracker.Running {
+		log.Println("Failed to load message, creating new message")
+		channel, _ := session.Channel(saveData.MessengerData.ChannelID)
+		if channel != nil {
+			newMessage, err := session.ChannelMessageSend(saveData.MessengerData.ChannelID, "Loading...")
+			if newMessage != nil && err == nil {
+				messenger.Message = newMessage
+			} else {
+				saveData.Tracker.Running = false
+				log.Println("Failed to send message")
+			}
+		} else {
+			saveData.Tracker.Running = false
+			log.Println("Failed to resolve channel")
+		}
 	}
 
 	return nil, messenger, saveData.Tracker

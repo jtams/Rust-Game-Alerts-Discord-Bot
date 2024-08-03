@@ -27,6 +27,8 @@ func NewMessageUpdater(session *discordgo.Session) *Messenger {
 func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 	go tracker.Start()
 
+	updater.content = ""
+
 	for range tracker.Channel {
 		if !tracker.IsRunning() {
 			// Save to register that the tracker was stopped manually
@@ -97,7 +99,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 		updater.content = content
 
 		msgEdit := &discordgo.MessageEdit{
-			Channel: updater.Message.ChannelID,
+			Channel: updater.ChannelID,
 			ID:      updater.Message.ID,
 			Content: &content,
 		}
