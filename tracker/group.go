@@ -7,8 +7,10 @@ import (
 // Group containing users
 // used to divide the users in the tracker message
 type Group struct {
-	Name  string  `json:"name"`
-	Users []*User `json:"users"`
+	Name     string  `json:"name"`
+	Users    []*User `json:"users"`
+	Notes    string  `json:"notes"`
+	Location string  `json:"location"`
 }
 
 // Creates a new group with empty user list

@@ -84,7 +84,14 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 				playerList += fmt.Sprintf("%s %s\n", symbol, name)
 			}
 
-			dividerCount := 20 - len(group.Name)/2
+			var groupFormatted string
+			if group.Location == "" {
+				groupFormatted = fmt.Sprintf("%s", group.Name)
+			} else {
+				groupFormatted = fmt.Sprintf("%s [%s]", group.Name, group.Location)
+			}
+
+			dividerCount := 20 - len(groupFormatted)/2
 			divider1 := strings.Repeat("═", dividerCount)
 			var divider2 string
 			if len(group.Name)%2 == 1 {
@@ -92,7 +99,11 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			} else {
 				divider2 = strings.Repeat("═", dividerCount)
 			}
-			content += fmt.Sprintf("%s %s %s\n", divider1, strings.ToUpper(group.Name), divider2)
+
+			content += fmt.Sprintf("%s %s %s\n", divider1, strings.ToUpper(groupFormatted), divider2)
+			if group.Notes != "" {
+				content += fmt.Sprintf("*** notes: %s\n", group.Notes)
+			}
 			content += playerList + "\n"
 		}
 
@@ -132,7 +143,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 
 		// Save
 		if err := SaveTrackerData(os.Getenv("SAVE_FILE"), tracker, updater); err != nil {
-			logger.Error("Failed to save tracker data: ", err)
+			logger.Error("Failed to save tracker data: ", "error", err)
 		}
 	}
 }

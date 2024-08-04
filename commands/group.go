@@ -3,12 +3,21 @@ package commands
 import (
 	"jtams/playertrackerbot/tracker"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 // Group command is used to add and remove groups
-func GroupCommand() *discordgo.ApplicationCommand {
+func GroupCommand(groups []string) *discordgo.ApplicationCommand {
+	groupChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(groups))
+	for i, group := range groups {
+		groupChoices[i] = &discordgo.ApplicationCommandOptionChoice{
+			Name:  group,
+			Value: group,
+		}
+	}
+
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "groups",
 		Description: "manage groups",
@@ -30,7 +39,7 @@ func GroupCommand() *discordgo.ApplicationCommand {
 
 			{
 				Name:        "remove",
-				Description: "Remove user(s)",
+				Description: "Remove group",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 				Options: []*discordgo.ApplicationCommandOption{
 					{
@@ -38,6 +47,48 @@ func GroupCommand() *discordgo.ApplicationCommand {
 						Name:        "name",
 						Description: "Name of the group to remove",
 						Required:    true,
+					},
+				},
+			},
+
+			{
+				Name:        "notes",
+				Description: "Set notes for a group",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "group",
+						Description: "Group to set notes for",
+						Choices:     groupChoices,
+						Required:    true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "notes",
+						Description: "Notes to set",
+						Required:    false,
+					},
+				},
+			},
+
+			{
+				Name:        "location",
+				Description: "Sets location for a group",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "group",
+						Description: "Group to set notes for",
+						Choices:     groupChoices,
+						Required:    true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "location",
+						Description: "Location of the group",
+						Required:    false,
 					},
 				},
 			},
@@ -90,6 +141,38 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 			}
 			groupName = strings.ToLower(groupName)
 			res = removeGroup(playerTracker, groupName, messageTracker, registry)
+		case "notes":
+			options = options[0].Options
+			var notes string
+			noteOption := findOptionByName("notes", options)
+			if noteOption == nil {
+				notes = ""
+			} else {
+				notes = noteOption.StringValue()
+			}
+			groupNameRaw := findOptionByName("group", options)
+			groupName := ""
+			if groupNameRaw != nil {
+				groupName = groupNameRaw.StringValue()
+			}
+			groupName = strings.ToLower(groupName)
+			res = setGroupNotes(playerTracker, notes, groupName)
+		case "location":
+			options = options[0].Options
+			var location string
+			noteOption := findOptionByName("location", options)
+			if noteOption == nil {
+				location = ""
+			} else {
+				location = noteOption.StringValue()
+			}
+			groupNameRaw := findOptionByName("group", options)
+			groupName := ""
+			if groupNameRaw != nil {
+				groupName = groupNameRaw.StringValue()
+			}
+			groupName = strings.ToLower(groupName)
+			res = setGroupLocation(playerTracker, location, groupName)
 		}
 
 		_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
@@ -99,6 +182,8 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 		if err != nil {
 			logger.Error("Failed to send followup message", "error", err)
 		}
+
+		playerTracker.Channel <- time.Now()
 
 		return nil
 	}
@@ -155,4 +240,32 @@ func removeGroup(playerTracker *tracker.PlayerTracker, groupName string, message
 	}
 
 	return "Group not found"
+}
+
+func setGroupNotes(playerTracker *tracker.PlayerTracker, notes string, groupName string) string {
+	if groupName == "" {
+		groupName = "others"
+	}
+
+	group := playerTracker.GetGroupByName(groupName)
+	if group == nil {
+		return "Group not found"
+	}
+
+	group.Notes = notes
+	return "Notes set"
+}
+
+func setGroupLocation(playerTracker *tracker.PlayerTracker, location string, groupName string) string {
+	if groupName == "" {
+		groupName = "others"
+	}
+
+	group := playerTracker.GetGroupByName(groupName)
+	if group == nil {
+		return "Group not found"
+	}
+
+	group.Location = location
+	return "Location set"
 }

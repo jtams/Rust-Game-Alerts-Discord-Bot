@@ -19,15 +19,15 @@ func RegisterAllDefaultCommands(discord *discordgo.Session, registry CommandRegi
 		logger.Error("Failed to register command", "name", "stop", "error", err)
 	}
 
-	// Group Command
-	if err := registry.AddCommand(*GroupCommand(), GroupHandler(messageUpdater, tracker, registry)); err != nil {
-		logger.Error("Failed to register command", "name", "group", "error", err)
-	}
-
 	// Get list of groups. Used for group options
 	groups := []string{}
 	for _, group := range tracker.Groups {
 		groups = append(groups, group.Name)
+	}
+
+	// Group Command
+	if err := registry.AddCommand(*GroupCommand(groups), GroupHandler(messageUpdater, tracker, registry)); err != nil {
+		logger.Error("Failed to register command", "name", "group", "error", err)
 	}
 
 	// User Command
