@@ -102,6 +102,15 @@ func main() {
 
 	addHandlers(discord, commandRegistry, playerTracker, messageUpdater)
 
+	discord.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+		// Check if the message is from the bot
+		if m.Author.ID == s.State.User.ID {
+			return
+		}
+
+		messageUpdater.MessageOverflow++
+	})
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")

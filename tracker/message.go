@@ -11,10 +11,11 @@ import (
 )
 
 type Messenger struct {
-	Session   *discordgo.Session
-	Message   *discordgo.Message
-	ChannelID string
-	content   string
+	Session         *discordgo.Session
+	Message         *discordgo.Message
+	ChannelID       string
+	content         string
+	MessageOverflow int
 }
 
 func NewMessageUpdater(session *discordgo.Session) *Messenger {
@@ -104,7 +105,14 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			Content: &content,
 		}
 
-		updater.Session.ChannelMessageEditComplex(msgEdit)
+		if updater.MessageOverflow > 4 {
+			updater.Session.ChannelMessageDelete(updater.ChannelID, updater.Message.ID)
+			message, _ := updater.Session.ChannelMessageSend(updater.ChannelID, content)
+			updater.Message = message
+			updater.MessageOverflow = 0
+		} else {
+			updater.Session.ChannelMessageEditComplex(msgEdit)
+		}
 
 		if err := SaveTrackerData(os.Getenv("SAVE_FILE"), tracker, updater); err != nil {
 			log.Println("Failed to save file", err)
