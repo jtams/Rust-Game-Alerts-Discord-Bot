@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 )
+
+var logger *slog.Logger = slog.Default()
 
 // Player Tracker manages the tracking data and organization.
 // The heart of the bot.
@@ -187,7 +189,7 @@ func (tracker *PlayerTracker) Users() []*User {
 
 // Start the tracker loop
 func (tracker *PlayerTracker) Start() {
-	log.Println("Starting tracker")
+	logger.Info("Starting tracker")
 	tracker.Running = true
 	go tracker.Loop()
 }
@@ -218,18 +220,16 @@ func (tracker *PlayerTracker) Update() {
 	// URL: https://api.battlemetrics.com/servers/10519728?include=player
 	resp, err := http.Get(fmt.Sprintf("https://api.battlemetrics.com/servers/%s?include=player", tracker.BattleMetricsID))
 	if err != nil {
-		log.Println(err)
+		logger.Error("Failed to fetch Battle Metrics data", "error", err)
 		return
 	}
 
 	bmRes := BattleMetricsResponse{}
 
 	if err := json.NewDecoder(resp.Body).Decode(&bmRes); err != nil {
-		log.Println("Failed to decode Battle Metrics response")
-		log.Println(err)
+		logger.Error("Failed to decode Battle Metrics response", "error", err)
 		d := []byte{}
 		resp.Body.Read(d)
-		log.Println(d)
 		return
 	}
 

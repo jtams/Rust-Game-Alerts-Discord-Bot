@@ -2,7 +2,6 @@ package commands
 
 import (
 	"jtams/playertrackerbot/tracker"
-	"log"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -50,6 +49,7 @@ func GroupCommand() *discordgo.ApplicationCommand {
 
 func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker, registry CommandRegistry) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+
 		options := i.ApplicationCommandData().Options
 
 		findOptionByName := func(name string, opts []*discordgo.ApplicationCommandInteractionDataOption) *discordgo.ApplicationCommandInteractionDataOption {
@@ -97,7 +97,7 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 		})
 
 		if err != nil {
-			log.Println(err)
+			logger.Error("Failed to send followup message", "error", err)
 		}
 
 		return nil
@@ -132,7 +132,7 @@ func addGroup(playerTracker *tracker.PlayerTracker, groupName string, messageUpd
 
 	err := updateCommand(registry, messageUpdater, playerTracker)
 	if err != nil {
-		log.Println(err)
+		logger.Error("Failed to update command", "error", err)
 		return "Failed to update command"
 	}
 
@@ -150,7 +150,7 @@ func removeGroup(playerTracker *tracker.PlayerTracker, groupName string, message
 
 	err := updateCommand(registry, messageUpdater, playerTracker)
 	if err != nil {
-		log.Println(err)
+		logger.Error("Failed to update command", "error", err)
 		return "Failed to update command"
 	}
 

@@ -3,11 +3,13 @@ package commands
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+var logger *slog.Logger = slog.Default()
 
 // Function that gets called when associated command it triggered
 type CommandHandler func(*discordgo.Session, *discordgo.InteractionCreate) error
@@ -117,10 +119,10 @@ func (r *DefaultCommandRegistry) Register() error {
 		if !command.registered {
 			c, err := r.session.ApplicationCommandCreate(r.session.State.User.ID, r.guildID, command.command)
 			if err != nil {
-				log.Print(err)
+				logger.Error("Failed to register command", "name", command.name, "error", err)
 				failed = append(failed, command.name)
 			} else {
-				log.Print(c.Name, " registered. ID: ", c.ID)
+				logger.Info("Command registered", "name", c.Name, "id", c.ID)
 				command.registered = true
 			}
 		}

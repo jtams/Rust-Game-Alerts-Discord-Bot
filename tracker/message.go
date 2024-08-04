@@ -2,7 +2,6 @@ package tracker
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -42,7 +41,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 		if !tracker.IsRunning() {
 			// Save to register that the tracker was stopped manually
 			SaveTrackerData(os.Getenv("SAVE_FILE"), tracker, updater)
-			log.Println("Messenger shutting down.")
+			logger.Info("Messenger shutting down.")
 			return
 		}
 
@@ -133,7 +132,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 
 		// Save
 		if err := SaveTrackerData(os.Getenv("SAVE_FILE"), tracker, updater); err != nil {
-			log.Println("Failed to save file", err)
+			logger.Error("Failed to save tracker data: ", err)
 		}
 	}
 }

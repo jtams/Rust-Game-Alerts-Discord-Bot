@@ -3,7 +3,6 @@ package tracker
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"os"
 
 	"github.com/bwmarrin/discordgo"
@@ -86,7 +85,7 @@ func LoadTrackerData(filename string, session *discordgo.Session) (error, *Messe
 
 	// Couldn't load the original messsage, create a new one
 	if messenger.Message == nil && saveData.Tracker.Running {
-		log.Println("Failed to load message, creating new message")
+		logger.Error("Failed to load message, creating new message")
 		channel, _ := session.Channel(saveData.MessengerData.ChannelID)
 		if channel != nil {
 			newMessage, err := session.ChannelMessageSend(saveData.MessengerData.ChannelID, "Loading...")
@@ -94,11 +93,11 @@ func LoadTrackerData(filename string, session *discordgo.Session) (error, *Messe
 				messenger.Message = newMessage
 			} else {
 				saveData.Tracker.Running = false
-				log.Println("Failed to send message")
+				logger.Error("Failed to send message", "error", err)
 			}
 		} else {
 			saveData.Tracker.Running = false
-			log.Println("Failed to resolve channel")
+			logger.Error("Failed to resolve channel")
 		}
 	}
 

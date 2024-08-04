@@ -1,9 +1,11 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 
 	"jtams/playertrackerbot/commands"
 	"jtams/playertrackerbot/tracker"
@@ -38,18 +40,28 @@ func main() {
 		panic(err)
 	}
 
-	// Log level
-	setLogging(discord, os.Getenv("LOG_LEVEL"))
+	// Logging
+	getDiscordGoLogLevel(discord, os.Getenv("LOG_LEVEL"))
+	logLevel := getSlogLevel(os.Getenv("LOG_LEVEL"))
+	opts := &slog.HandlerOptions{
+		Level: logLevel,
+	}
+	loggerHandler := slog.NewJSONHandler(os.Stdout, opts)
+	logger := slog.New(loggerHandler)
+	slog.SetDefault(logger)
+	setDiscordGoLogger(logger)
+
+	logger.Info("Log Level", "level", logLevel.String())
 
 	// Handles log in event
 	discord.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+		logger.Info("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
 
 	// Bot Login
 	err = discord.Open()
 	if err != nil {
-		log.Fatalf("Cannot open the session: %v", err)
+		logger.Error("Cannot open the session", "error", err.Error())
 	}
 	defer discord.Close()
 
@@ -71,7 +83,7 @@ func main() {
 
 	// If the tracker crashed or was stopped while running, resume.
 	if playerTracker.Running {
-		log.Println("Forcing startup")
+		logger.Info("Forcing startup")
 		commands.ForceStartup(messageUpdater, playerTracker)
 	}
 
@@ -81,7 +93,7 @@ func main() {
 	// Listens for interactions and runs the appropriate command handler
 	discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if err := commandRegistry.Run(i); err != nil {
-			log.Println(err)
+			logger.Error(err.Error())
 		}
 	})
 
@@ -103,22 +115,73 @@ func main() {
 	// Wait here until CTRL-C or other term signal is received.
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
-	log.Println("Press Ctrl+C to exit")
+	logger.Info("Press Ctrl+C to exit")
 	<-stop
-	log.Println("Shutting Down...")
+	logger.Info("Shutting Down...")
 
 	// When bot stops, remove registered commands
 	if err = commandRegistry.Unregister(); err != nil {
-		log.Println(err)
+		logger.Error(err.Error())
 	} else {
-		log.Println("All commands unregistered")
+		logger.Info("All commands unregistered")
 	}
 
-	log.Println("Goodbye!")
+	logger.Info("Goodbye!")
+}
+
+func getSlogLevel(logLevel string) slog.Level {
+	logLevel = strings.ToLower(logLevel)
+
+	switch logLevel {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelError
+	}
+}
+
+func setDiscordGoLogger(logger *slog.Logger) {
+	// var Logger func(msgL, caller int, format string, a ...interface{})
+	discordgo.Logger = func(msgL, caller int, format string, a ...interface{}) {
+		msg := fmt.Sprintf(format, a...)
+
+		if strings.Contains(msg, "RawData:json.RawMessag") {
+			return
+		}
+
+		if strings.Contains(msg, "Heartbeat") {
+			return
+		}
+
+		switch msgL {
+		case discordgo.LogDebug:
+			logger.Debug(msg, "type", "discordgo")
+			break
+		case discordgo.LogInformational:
+			logger.Info(msg, "type", "discordgo")
+			break
+		case discordgo.LogWarning:
+			logger.Warn(msg, "type", "discordgo")
+			break
+		case discordgo.LogError:
+			logger.Error(msg, "type", "discordgo")
+			break
+		default:
+			logger.Info(msg, "type", "discordgo")
+		}
+	}
 }
 
 // Sets the logging level for the discord session
-func setLogging(discord *discordgo.Session, logLevel string) {
+func getDiscordGoLogLevel(discord *discordgo.Session, logLevel string) {
+	logLevel = strings.ToLower(logLevel)
+
 	switch logLevel {
 	case "debug":
 		discord.LogLevel = discordgo.LogDebug
