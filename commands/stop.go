@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"jtams/playertrackerbot/tracker"
 
 	"github.com/bwmarrin/discordgo"
@@ -19,7 +20,7 @@ func StopCommand() *discordgo.ApplicationCommand {
 func StopHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if messageTracker.Message != nil {
-			content := "Stopped."
+			content := fmt.Sprintf("Stopped by <@%s>", i.Member.User.ID)
 
 			msgEdit := &discordgo.MessageEdit{
 				Channel: messageTracker.Message.ChannelID,
