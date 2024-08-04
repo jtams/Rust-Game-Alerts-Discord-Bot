@@ -3,6 +3,7 @@ package commands
 import (
 	"errors"
 	"jtams/playertrackerbot/tracker"
+	"regexp"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -27,6 +28,19 @@ func StartCommand() *discordgo.ApplicationCommand {
 	return cmd
 }
 
+// Finds the ID in the URL
+func extractID(url string) (string, error) {
+	// Searches for number
+	re := regexp.MustCompile(`\b\d+\b`)
+
+	match := re.FindString(url)
+	if match == "" {
+		return "", errors.New("no match found")
+	}
+
+	return match, nil
+}
+
 func StartHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		// Check if the tracker is already running
@@ -44,7 +58,18 @@ func StartHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 		battleMetricsID := ""
 		for _, option := range i.ApplicationCommandData().Options {
 			if option.Name == "battle_metrics_id" {
+				var err error
 				battleMetricsID = option.StringValue()
+				battleMetricsID, err = extractID(battleMetricsID)
+				if err != nil {
+					return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: "Invalid BattleMetrics ID provided.",
+							Flags:   discordgo.MessageFlagsEphemeral,
+						},
+					})
+				}
 			}
 		}
 
