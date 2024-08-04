@@ -167,6 +167,7 @@ func (r *DefaultCommandRegistry) Run(i *discordgo.InteractionCreate) error {
 		return errors.New("failed to find command")
 	}
 
+	logger.Info("Command triggered", "name", cmd.name, "userID", i.Member.User.ID, "username", i.Member.User.Username)
 	go cmd.handler(r.session, i)
 	return nil
 }
