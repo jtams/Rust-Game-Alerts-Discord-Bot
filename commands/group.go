@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
 	"log"
 	"strings"
@@ -9,6 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// Group command is used to add and remove groups
 func GroupCommand() *discordgo.ApplicationCommand {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "groups",
@@ -48,7 +48,7 @@ func GroupCommand() *discordgo.ApplicationCommand {
 	return cmd
 }
 
-func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker, registry bot.CommandRegistry) bot.CommandHandler {
+func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker, registry CommandRegistry) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		options := i.ApplicationCommandData().Options
 
@@ -104,7 +104,7 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 	}
 }
 
-func updateCommand(registry bot.CommandRegistry, messageUpdater *tracker.Messenger, playerTracker *tracker.PlayerTracker) error {
+func updateCommand(registry CommandRegistry, messageUpdater *tracker.Messenger, playerTracker *tracker.PlayerTracker) error {
 	groups := []string{}
 	for _, group := range playerTracker.Groups {
 		groups = append(groups, group.Name)
@@ -121,7 +121,7 @@ func updateCommand(registry bot.CommandRegistry, messageUpdater *tracker.Messeng
 	return nil
 }
 
-func addGroup(playerTracker *tracker.PlayerTracker, groupName string, messageUpdater *tracker.Messenger, registry bot.CommandRegistry) string {
+func addGroup(playerTracker *tracker.PlayerTracker, groupName string, messageUpdater *tracker.Messenger, registry CommandRegistry) string {
 	if groupName == "" {
 		return "Invalid group name"
 	}
@@ -139,7 +139,7 @@ func addGroup(playerTracker *tracker.PlayerTracker, groupName string, messageUpd
 	return "Group added"
 }
 
-func removeGroup(playerTracker *tracker.PlayerTracker, groupName string, messageUpdater *tracker.Messenger, registry bot.CommandRegistry) string {
+func removeGroup(playerTracker *tracker.PlayerTracker, groupName string, messageUpdater *tracker.Messenger, registry CommandRegistry) string {
 	if groupName == "" {
 		return "Invalid group name"
 	}

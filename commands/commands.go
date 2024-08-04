@@ -1,4 +1,4 @@
-package bot
+package commands
 
 import (
 	"errors"
@@ -9,8 +9,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// Function that gets called when associated command it triggered
 type CommandHandler func(*discordgo.Session, *discordgo.InteractionCreate) error
 
+// Manages bot commands
 type CommandRegistry interface {
 	// Adds command to registry
 	AddCommand(discordgo.ApplicationCommand, CommandHandler) error
@@ -31,6 +33,7 @@ type CommandRegistry interface {
 	Run(*discordgo.InteractionCreate) error
 }
 
+// Stores data for command
 type CommandData struct {
 	name       string
 	command    *discordgo.ApplicationCommand
@@ -38,6 +41,7 @@ type CommandData struct {
 	registered bool
 }
 
+// Default implementation of CommandRegistry
 type DefaultCommandRegistry struct {
 	commands map[string]*CommandData
 	session  *discordgo.Session
@@ -53,6 +57,7 @@ func NewDefaultCommandRegistry(session *discordgo.Session, guildID string) *Defa
 	}
 }
 
+// Adds a command to the registry
 func (r *DefaultCommandRegistry) AddCommand(command discordgo.ApplicationCommand, handler CommandHandler) error {
 	if _, found := r.commands[command.Name]; found {
 		return errors.New("command already registered")
@@ -69,6 +74,7 @@ func (r *DefaultCommandRegistry) AddCommand(command discordgo.ApplicationCommand
 	return nil
 }
 
+// Updates an existing command in the registry
 func (r *DefaultCommandRegistry) UpdateCommand(command discordgo.ApplicationCommand, handler CommandHandler) error {
 	if _, found := r.commands[command.Name]; !found {
 		return errors.New("command not found")
@@ -85,6 +91,7 @@ func (r *DefaultCommandRegistry) UpdateCommand(command discordgo.ApplicationComm
 	return nil
 }
 
+// Removes a command from the registry
 func (r *DefaultCommandRegistry) RemoveCommand(commandName string) error {
 	cmd, ok := r.commands[commandName]
 	if cmd == nil || !ok {
@@ -102,6 +109,7 @@ func (r *DefaultCommandRegistry) RemoveCommand(commandName string) error {
 	return nil
 }
 
+// Registers all commands with Discord
 func (r *DefaultCommandRegistry) Register() error {
 	failed := []string{}
 
@@ -126,6 +134,7 @@ func (r *DefaultCommandRegistry) Register() error {
 	return errors.New(fmt.Sprintf("failed to register [%s]", joined))
 }
 
+// Unregisters all commands with Discord
 func (r *DefaultCommandRegistry) Unregister() error {
 
 	failed := []string{}
@@ -149,6 +158,7 @@ func (r *DefaultCommandRegistry) Unregister() error {
 	return errors.New(fmt.Sprintf("failed to unregister [%s]", joined))
 }
 
+// Runs the command handler for the associated command
 func (r *DefaultCommandRegistry) Run(i *discordgo.InteractionCreate) error {
 	cmd, found := r.commands[i.ApplicationCommandData().Name]
 	if cmd == nil || !found {

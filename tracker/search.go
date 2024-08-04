@@ -3,7 +3,7 @@ package tracker
 import "strings"
 
 // Takes a list of users, a function to get the username of the user and returns the user that the name matches
-// TODO: This search algorithm is inefficient and it hurts
+// TODO: This search algorithm is inefficient and it hurts. Seriously, stop putting it off.
 func SearchUsersWithUserCreatedName[T any](userList []T, getUsername func(T) string, username string, exact bool, casesensitive bool) (int, *T) {
 	lowerUsername := strings.ToLower(username)
 

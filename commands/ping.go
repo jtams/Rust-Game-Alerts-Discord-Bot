@@ -2,9 +2,9 @@ package commands
 
 import (
 	"github.com/bwmarrin/discordgo"
-	"jtams/playertrackerbot/bot"
 )
 
+// Ping test command
 func PingCommand() *discordgo.ApplicationCommand {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "ping",
@@ -14,7 +14,7 @@ func PingCommand() *discordgo.ApplicationCommand {
 	return cmd
 }
 
-func PingHandler() bot.CommandHandler {
+func PingHandler() CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		return s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,

@@ -19,7 +19,10 @@ type SaveFileData struct {
 	MessengerData *MessengerSaveData `json:"messengerData"`
 }
 
+// Save the tracker data and messenger info to a file
 func SaveTrackerData(filename string, tracker *PlayerTracker, messenger *Messenger) error {
+	// Save the message ID and channel ID
+	// This is so we can reestablish the connection to the original message
 	msgData := MessengerSaveData{
 		MessageID: messenger.Message.ID,
 		ChannelID: messenger.Message.ChannelID,
@@ -30,8 +33,7 @@ func SaveTrackerData(filename string, tracker *PlayerTracker, messenger *Messeng
 		MessengerData: &msgData,
 	}
 
-	// tracker.Channel = make(chan time.Time)
-
+	// Overwrite or create the file
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
@@ -48,22 +50,27 @@ func SaveTrackerData(filename string, tracker *PlayerTracker, messenger *Messeng
 	return err
 }
 
+// Load the tracker data and messenger info from a file
 func LoadTrackerData(filename string, session *discordgo.Session) (error, *Messenger, *PlayerTracker) {
 	saveData := &SaveFileData{}
 
+	// Read file data
 	rawSaveData, err := os.ReadFile(filename)
 	if err != nil {
 		return err, nil, nil
 	}
 
+	// Unmarshal the data
 	if err := json.Unmarshal(rawSaveData, saveData); err != nil {
 		return err, nil, nil
 	}
 
+	// If the tracker or messenger data wasn't able to be parsed.
 	if saveData.Tracker == nil || saveData.MessengerData == nil {
 		return errors.New("failed to loads tracker or messenger data from file, file may be corrupted"), nil, nil
 	}
 
+	// If the tracker was running when it was shutdown, prepare to resume.
 	messenger := NewMessageUpdater(session)
 	messenger.Message, err = session.ChannelMessage(saveData.MessengerData.ChannelID, saveData.MessengerData.MessageID)
 	if messenger.Message != nil && saveData.Tracker.Running {
@@ -77,6 +84,7 @@ func LoadTrackerData(filename string, session *discordgo.Session) (error, *Messe
 		messenger.Session.ChannelMessageEditComplex(msgEdit)
 	}
 
+	// Couldn't load the original messsage, create a new one
 	if messenger.Message == nil && saveData.Tracker.Running {
 		log.Println("Failed to load message, creating new message")
 		channel, _ := session.Channel(saveData.MessengerData.ChannelID)

@@ -10,16 +10,28 @@ import (
 	"time"
 )
 
+// Player Tracker manages the tracking data and organization.
+// The heart of the bot.
 type PlayerTracker struct {
-	BattleMetricsID string         `json:"battleMetricsID"`
-	ServerName      string         `json:"serverName"`
-	Groups          []*Group       `json:"groups"`
-	Interval        int            `json:"interval"`
-	Running         bool           `json:"running"`
-	Channel         chan time.Time `json:"-"`
-	Online          [2]int         `json:"online"`
+	BattleMetricsID string `json:"battleMetricsID"`
+	ServerName      string `json:"serverName"`
+
+	Groups []*Group `json:"groups"`
+
+	// Update interval in seconds
+	Interval int `json:"interval"`
+
+	Running bool `json:"running"`
+
+	// Signal channel after each update
+	Channel chan time.Time `json:"-"`
+
+	// Server population [online, capacity]
+	Online [2]int `json:"online"`
 }
 
+// Creates new default player tracker.
+// Includes default group names: Squad, Allies, Neighbors, Enemies, Others.
 func NewPlayerTracker() *PlayerTracker {
 	tracker := &PlayerTracker{
 		BattleMetricsID: "",
@@ -31,15 +43,16 @@ func NewPlayerTracker() *PlayerTracker {
 	}
 
 	// Default groups
-	tracker.AddNewGroup("Squad")
-	tracker.AddNewGroup("Allies")
-	tracker.AddNewGroup("Neighbors")
-	tracker.AddNewGroup("Enemies")
-	tracker.AddNewGroup("Others")
+	tracker.AddNewGroup("squad")
+	tracker.AddNewGroup("allies")
+	tracker.AddNewGroup("neighbors")
+	tracker.AddNewGroup("enemies")
+	tracker.AddNewGroup("others")
 
 	return tracker
 }
 
+// Adds a group to the tracker.
 func (tracker *PlayerTracker) AddGroup(group *Group) error {
 	group.Name = strings.ToLower(group.Name)
 	if tracker.GetGroupByName(group.Name) != nil {
@@ -50,11 +63,13 @@ func (tracker *PlayerTracker) AddGroup(group *Group) error {
 	return nil
 }
 
+// Creates a new group and adds it to the tracker.
 func (tracker *PlayerTracker) AddNewGroup(name string) error {
 	newGroup := NewGroup(name)
 	return tracker.AddGroup(newGroup)
 }
 
+// Removes a group from the tracker by name.
 func (tracker *PlayerTracker) RemoveGroup(groupName string) bool {
 	groupName = strings.ToLower(groupName)
 	for i, group := range tracker.Groups {
@@ -66,6 +81,7 @@ func (tracker *PlayerTracker) RemoveGroup(groupName string) bool {
 	return false
 }
 
+// Adds a user to a group by username.
 func (tracker *PlayerTracker) AddUserToGroup(username string, groupName string) error {
 	groupName = strings.ToLower(groupName)
 	group := tracker.GetGroupByName(groupName)
@@ -77,6 +93,7 @@ func (tracker *PlayerTracker) AddUserToGroup(username string, groupName string) 
 	return nil
 }
 
+// Removes a user from a group by username.
 func (tracker *PlayerTracker) RemoveUserByUsername(username string) bool {
 	deleted := 0
 	for _, group := range tracker.Groups {
@@ -88,6 +105,7 @@ func (tracker *PlayerTracker) RemoveUserByUsername(username string) bool {
 	return deleted > 0
 }
 
+// Moves a user from one group to another.
 func (tracker *PlayerTracker) MoveUserToGroup(username string, groupName string) bool {
 	groupName = strings.ToLower(groupName)
 
@@ -121,6 +139,7 @@ func (tracker *PlayerTracker) MoveUserToGroup(username string, groupName string)
 	return res
 }
 
+// Removes a user from a group by username and group name.
 func (tracker *PlayerTracker) RemoveUserByUsernameAndGroup(username string, groupName string) bool {
 	groupName = strings.ToLower(groupName)
 	group := tracker.GetGroupByName(groupName)
@@ -130,6 +149,7 @@ func (tracker *PlayerTracker) RemoveUserByUsernameAndGroup(username string, grou
 	return group.RemoveUserByUsername(username)
 }
 
+// Get group by name
 func (tracker *PlayerTracker) GetGroupByName(name string) *Group {
 	name = strings.ToLower(name)
 	for _, group := range tracker.Groups {
@@ -140,6 +160,19 @@ func (tracker *PlayerTracker) GetGroupByName(name string) *Group {
 	return nil
 }
 
+// Get user by ID
+func (tracker *PlayerTracker) GetUserByID(id string) *User {
+	users := tracker.Users()
+	for _, user := range users {
+		if user.ID == id {
+			return user
+		}
+	}
+	return nil
+}
+
+// Get list of users from all groups.
+// Users.Group contains the group name still.
 func (tracker *PlayerTracker) Users() []*User {
 	users := []*User{}
 
@@ -152,38 +185,32 @@ func (tracker *PlayerTracker) Users() []*User {
 	return users
 }
 
+// Start the tracker loop
 func (tracker *PlayerTracker) Start() {
 	log.Println("Starting tracker")
 	tracker.Running = true
 	go tracker.Loop()
 }
 
+// Stop the tracker loop, updates messenger as well
 func (tracker *PlayerTracker) Stop() {
 	tracker.Running = false
 	// Allows messenger to know to stop
 	tracker.Channel <- time.Now()
 }
 
+// Returns if the tracker is running
 func (tracker *PlayerTracker) IsRunning() bool {
 	return tracker.Running
 }
 
+// Main loop for the tracker. Update, signal messenger, wait, repeat
 func (tracker *PlayerTracker) Loop() {
 	for tracker.Running {
 		tracker.Update()
 		tracker.Channel <- time.Now()
 		time.Sleep(time.Duration(tracker.Interval) * time.Second)
 	}
-}
-
-func (tracker *PlayerTracker) GetUserByID(id string) *User {
-	users := tracker.Users()
-	for _, user := range users {
-		if user.ID == id {
-			return user
-		}
-	}
-	return nil
 }
 
 // Fetches data from Battle Metrics and updates tracker with up to date information
@@ -206,6 +233,7 @@ func (tracker *PlayerTracker) Update() {
 		return
 	}
 
+	// Set server population
 	tracker.Online[0] = bmRes.Data.Attributes.Players
 	tracker.Online[1] = bmRes.Data.Attributes.MaxPlayers
 	tracker.ServerName = bmRes.Data.Attributes.Name

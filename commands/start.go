@@ -2,13 +2,13 @@ package commands
 
 import (
 	"errors"
-	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
+// Start command starts the tracker and also sets the BattleMetrics ID if provided
 func StartCommand() *discordgo.ApplicationCommand {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "start",
@@ -27,7 +27,7 @@ func StartCommand() *discordgo.ApplicationCommand {
 	return cmd
 }
 
-func StartHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) bot.CommandHandler {
+func StartHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		// Check if the tracker is already running
 		if playerTracker.IsRunning() {

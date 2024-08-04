@@ -1,12 +1,12 @@
 package commands
 
 import (
-	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
 
 	"github.com/bwmarrin/discordgo"
 )
 
+// Stops the tracker
 func StopCommand() *discordgo.ApplicationCommand {
 	cmd := &discordgo.ApplicationCommand{
 		Name:        "stop",
@@ -16,7 +16,7 @@ func StopCommand() *discordgo.ApplicationCommand {
 	return cmd
 }
 
-func StopHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) bot.CommandHandler {
+func StopHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if messageTracker.Message != nil {
 			content := "Stopped."

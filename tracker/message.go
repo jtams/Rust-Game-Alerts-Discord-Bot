@@ -10,6 +10,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// Messenger is used to update the message with the tracker data
 type Messenger struct {
 	Session         *discordgo.Session
 	Message         *discordgo.Message
@@ -18,6 +19,7 @@ type Messenger struct {
 	MessageOverflow int
 }
 
+// Creates a new Messenger with default settings
 func NewMessageUpdater(session *discordgo.Session) *Messenger {
 	return &Messenger{
 		Session: session,
@@ -25,11 +27,17 @@ func NewMessageUpdater(session *discordgo.Session) *Messenger {
 	}
 }
 
+// Starts tracking the player tracker and updates the message with the tracker data
+// This is the entry point for starting the tracker. This will automatically start the
+// PlayerTracker's update loop.
 func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
+	// Start the tracker
 	go tracker.Start()
 
+	// Clears the content to force an update on the first run (used when tracking is stopped then stopped)
 	updater.content = ""
 
+	// Wait for tracker update
 	for range tracker.Channel {
 		if !tracker.IsRunning() {
 			// Save to register that the tracker was stopped manually
@@ -38,8 +46,10 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			return
 		}
 
+		// If the message is nil, create a new message.
+		// If the /start command doesn't create a message for some reason.
 		if updater.Message == nil {
-			log.Println("Message is nil, cannot update")
+			createNewMessage(updater, updater.Session, updater.ChannelID, "Tracker is starting up...")
 			return
 		}
 
@@ -48,6 +58,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 		content := fmt.Sprintf("https://www.battlemetrics.com/servers/rust/%s\n```diff\n%s\n%d/%d Online\n\n", tracker.BattleMetricsID, tracker.ServerName, tracker.Online[0], tracker.Online[1])
 		empty := true
 
+		// Create list of groups with their players and their status
 		for _, group := range tracker.Groups {
 			if len(group.Users) == 0 {
 				continue
@@ -105,21 +116,42 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			Content: &content,
 		}
 
+		// If users have send a few messages since the last update, create a new message
+		// so that the tracker is always visible in the channel.
 		if updater.MessageOverflow > 4 {
 			updater.Session.ChannelMessageDelete(updater.ChannelID, updater.Message.ID)
 			message, _ := updater.Session.ChannelMessageSend(updater.ChannelID, content)
 			updater.Message = message
 			updater.MessageOverflow = 0
 		} else {
-			updater.Session.ChannelMessageEditComplex(msgEdit)
+			_, err := updater.Session.ChannelMessageEditComplex(msgEdit)
+			// If the message was deleted, create a new message
+			if err != nil {
+				createNewMessage(updater, updater.Session, updater.ChannelID, content)
+			}
 		}
 
+		// Save
 		if err := SaveTrackerData(os.Getenv("SAVE_FILE"), tracker, updater); err != nil {
 			log.Println("Failed to save file", err)
 		}
 	}
 }
 
+// Creates a new message in the channel with the content
+func createNewMessage(messenger *Messenger, session *discordgo.Session, channelID string, content string) error {
+	message, err := session.ChannelMessageSend(channelID, content)
+	if err != nil {
+		return err
+	}
+
+	messenger.Message = message
+
+	return nil
+}
+
+// Converts a time to a string that represents how long ago it was
+// Includes, seconds, minutes, hours, and days
 func timeAgo(t time.Time) string {
 	duration := time.Since(t)
 	seconds := int(duration.Seconds())
@@ -150,15 +182,3 @@ func timeAgo(t time.Time) string {
 	}
 	return fmt.Sprintf("%d seconds ago", seconds)
 }
-
-// https://www.battlemetrics.com/servers/rust/18566638
-// ```diff
-// [US West] Facepunch 2 (online)
-// 18/250 Online
-//
-// ══════════════ SQUAD ══════════════
-// - realm (untracked)
-// - thelowerrealm (untracked)
-// - void (untracked)
-//
-// ```

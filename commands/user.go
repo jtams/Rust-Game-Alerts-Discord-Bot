@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
 	"strings"
 	"time"
@@ -9,6 +8,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+// User command manages users.
+// Includes: Add, Remove, Move
 func UserCommand(groups []string) *discordgo.ApplicationCommand {
 	groupChoices := make([]*discordgo.ApplicationCommandOptionChoice, len(groups))
 	for i, group := range groups {
@@ -90,7 +91,7 @@ func UserCommand(groups []string) *discordgo.ApplicationCommand {
 	return cmd
 }
 
-func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) bot.CommandHandler {
+func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.PlayerTracker) CommandHandler {
 	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		options := i.ApplicationCommandData().Options
 

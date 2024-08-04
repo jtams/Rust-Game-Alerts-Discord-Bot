@@ -2,6 +2,7 @@ package tracker
 
 import "time"
 
+// This files contains the struct data for the BattleMetrics API response
 type BattleMetricsResponse struct {
 	Data     Data     `json:"data"`
 	Included []Player `json:"included"`
