@@ -88,6 +88,39 @@ func (tracker *PlayerTracker) RemoveUserByUsername(username string) bool {
 	return deleted > 0
 }
 
+func (tracker *PlayerTracker) MoveUserToGroup(username string, groupName string) bool {
+	groupName = strings.ToLower(groupName)
+
+	// Find user
+	_, userP := SearchUsersWithUserCreatedName(tracker.Users(), func(u *User) string { return u.GetUsername() }, username, false, false)
+	if userP == nil || *userP == nil {
+		return false
+	}
+	user := *userP
+
+	// Already in group
+	if user.Group == groupName {
+		return false
+	}
+
+	// Get new group
+	group := tracker.GetGroupByName(groupName)
+	if group == nil {
+		return false
+	}
+
+	// Add user to new group
+	group.Users = append(group.Users, user)
+
+	// Remove them from existing group
+	res := tracker.GetGroupByName(user.Group).RemoveUserByID(user.ID)
+
+	// Update user's group value
+	user.Group = group.Name
+
+	return res
+}
+
 func (tracker *PlayerTracker) RemoveUserByUsernameAndGroup(username string, groupName string) bool {
 	groupName = strings.ToLower(groupName)
 	group := tracker.GetGroupByName(groupName)

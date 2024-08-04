@@ -3,7 +3,6 @@ package commands
 import (
 	"jtams/playertrackerbot/bot"
 	"jtams/playertrackerbot/tracker"
-	"log"
 	"strings"
 	"time"
 
@@ -65,6 +64,26 @@ func UserCommand(groups []string) *discordgo.ApplicationCommand {
 					},
 				},
 			},
+			{
+				Name:        "move",
+				Description: "Move user(s)",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "username",
+						Description: "Username(s) of the user(s) to move",
+						Required:    true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "group",
+						Description: "Group to move the user to",
+						Required:    false,
+						Choices:     groupChoices,
+					},
+				},
+			},
 		},
 	}
 
@@ -109,6 +128,16 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 			}
 			groupName = strings.ToLower(groupName)
 			res = removeUser(playerTracker, username, groupName)
+		case "move":
+			options = options[0].Options
+			username := findOptionByName("username", options).StringValue()
+			groupNameRaw := findOptionByName("group", options)
+			groupName := ""
+			if groupNameRaw != nil {
+				groupName = groupNameRaw.StringValue()
+			}
+			groupName = strings.ToLower(groupName)
+			res = moveUser(playerTracker, username, groupName)
 		}
 
 		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -153,7 +182,6 @@ func addUser(playerTracker *tracker.PlayerTracker, username string, groupName st
 
 func removeUser(playerTracker *tracker.PlayerTracker, username string, groupName string) string {
 	users := strings.Split(username, ",")
-	log.Println("Removing users", users, "from group", groupName)
 
 	failed := []string{}
 
@@ -176,4 +204,24 @@ func removeUser(playerTracker *tracker.PlayerTracker, username string, groupName
 
 	joined := strings.Join(failed, ", ")
 	return "Failed to remove user(s): " + joined
+}
+
+func moveUser(playerTracker *tracker.PlayerTracker, username string, groupName string) string {
+	users := strings.Split(username, ",")
+
+	failed := []string{}
+
+	for _, user := range users {
+		user = strings.TrimSpace(user)
+		if !playerTracker.MoveUserToGroup(user, groupName) {
+			failed = append(failed, user)
+		}
+	}
+
+	if len(failed) == 0 {
+		return "User(s) moved"
+	}
+
+	joined := strings.Join(failed, ", ")
+	return "Failed to move user(s): " + joined
 }
