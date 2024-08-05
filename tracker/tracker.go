@@ -162,6 +162,17 @@ func (tracker *PlayerTracker) GetGroupByName(name string) *Group {
 	return nil
 }
 
+// Get user by username
+func (tracker *PlayerTracker) GetUserByUsername(username string) *User {
+	users := tracker.Users()
+	_, foundUser := SearchUsersWithUserCreatedName(users, func(u *User) string { return u.GetUsername() }, username, false, false)
+	if foundUser != nil && *foundUser != nil {
+		return *foundUser
+	}
+
+	return nil
+}
+
 // Get user by ID
 func (tracker *PlayerTracker) GetUserByID(id string) *User {
 	users := tracker.Users()

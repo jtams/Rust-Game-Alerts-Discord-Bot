@@ -121,6 +121,14 @@ func GroupHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 			},
 		})
 
+		defer func() {
+			if recover() != nil {
+				s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+					Content: "Failed",
+				})
+			}
+		}()
+
 		switch options[0].Name {
 		case "add":
 			options = options[0].Options

@@ -54,6 +54,18 @@ func StartHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Play
 			})
 		}
 
+		defer func() {
+			if recover() != nil {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Failed to start tracker.",
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+			}
+		}()
+
 		// Check for battle_metrics_id
 		battleMetricsID := ""
 		for _, option := range i.ApplicationCommandData().Options {

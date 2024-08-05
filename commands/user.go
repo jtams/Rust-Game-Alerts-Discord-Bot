@@ -105,6 +105,18 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 			return nil
 		}
 
+		defer func() {
+			if recover() != nil {
+				s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Failed.",
+						Flags:   discordgo.MessageFlagsEphemeral,
+					},
+				})
+			}
+		}()
+
 		var res string
 
 		switch options[0].Name {

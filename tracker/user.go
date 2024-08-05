@@ -24,7 +24,7 @@ type User struct {
 
 	// List of usernames the user has had. The first username is the name
 	// given to the tracker by the command issuer.
-	Usernames []string `json:"username"`
+	Usernames []string `json:"usernames"`
 
 	Group string `json:"group"`
 
