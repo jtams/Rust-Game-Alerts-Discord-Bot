@@ -19,7 +19,7 @@ Create a `.env` file in the root directory or add environment variables with the
 ```env
 BOT_TOKEN=[your Discord bot token] [required]
 GUILD_ID=[your Discord server ID] [required
-LOG_LEVEL=[log level] [optional] [default: INFO][options: DEBUG, INFO, WARN, ERROR]
+LOG_LEVEL=[log level] [optional] [default: INFO] [options: DEBUG, INFO, WARN, ERROR]
 SAVE_FILE=[file to save player data] [optional] [default: ./data/save_data.json]
 ```
 
