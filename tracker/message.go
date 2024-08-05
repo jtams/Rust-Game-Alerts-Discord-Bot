@@ -67,6 +67,10 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			playerList := ""
 
 			for _, player := range group.Users {
+				if player.GetUsername() == "" {
+					continue
+				}
+
 				symbol := "-"
 				if player.Status == StatusOnline {
 					symbol = "+"

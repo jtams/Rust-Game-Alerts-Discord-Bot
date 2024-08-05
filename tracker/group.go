@@ -32,6 +32,17 @@ func (g *Group) AddUser(username string) {
 	g.Users = append(g.Users, user)
 }
 
+func (g *Group) AddUserByID(id string) {
+	user := &User{
+		ID:        id,
+		Usernames: []string{},
+		Group:     g.Name,
+		Status:    StatusUnknown,
+	}
+
+	g.Users = append(g.Users, user)
+}
+
 // Removes user by username, searching is case insensitive and can be partial
 // if you have the user's ID it's highly recommended to use RemoveUserByID.
 // This function should be used when a user inputs a username to remove.

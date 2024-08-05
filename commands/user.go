@@ -46,6 +46,27 @@ func UserCommand(groups []string) *discordgo.ApplicationCommand {
 			},
 
 			{
+				Name:        "add-by-id",
+				Description: "Add user by BattleMetric Player ID",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+				Options: []*discordgo.ApplicationCommandOption{
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "id",
+						Description: "ID of the user to add.",
+						Required:    true,
+					},
+					{
+						Type:        discordgo.ApplicationCommandOptionString,
+						Name:        "group",
+						Description: "Group to add the user to",
+						Required:    false,
+						Choices:     groupChoices,
+					},
+				},
+			},
+
+			{
 				Name:        "remove",
 				Description: "Remove user(s)",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
@@ -131,6 +152,17 @@ func UserHandler(messageTracker *tracker.Messenger, playerTracker *tracker.Playe
 			groupName = strings.ToLower(groupName)
 			res = addUser(playerTracker, username, groupName)
 			break
+		case "add-by-id":
+			options = options[0].Options
+			id := findOptionByName("id", options).StringValue()
+			groupNameRaw := findOptionByName("group", options)
+			groupName := ""
+			if groupNameRaw != nil {
+				groupName = groupNameRaw.StringValue()
+			}
+			groupName = strings.ToLower(groupName)
+			res = addUserByID(playerTracker, id, groupName)
+			break
 		case "remove":
 			options = options[0].Options
 			username := findOptionByName("username", options).StringValue()
@@ -191,6 +223,28 @@ func addUser(playerTracker *tracker.PlayerTracker, username string, groupName st
 
 	joined := strings.Join(failed, ", ")
 	return "Failed to add user(s): " + joined
+}
+
+func addUserByID(playerTracker *tracker.PlayerTracker, id string, groupName string) string {
+	if groupName == "" {
+		groupName = "others"
+	}
+
+	failed := []string{}
+
+	id = strings.TrimSpace(id)
+	err := playerTracker.AddUserToGroupByID(id, groupName)
+	if err != nil {
+		failed = append(failed, id)
+		return "Error adding user to group"
+	}
+
+	if len(failed) == 0 {
+		return "User added to list. Please wait for the tracker to update."
+	}
+
+	joined := strings.Join(failed, ", ")
+	return "Failed to add user " + joined
 }
 
 func removeUser(playerTracker *tracker.PlayerTracker, username string, groupName string) string {

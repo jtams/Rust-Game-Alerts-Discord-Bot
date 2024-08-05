@@ -41,6 +41,11 @@ func (user *User) ChangeUsername(username string) {
 		user.Usernames = []string{}
 	}
 
+	if len(user.Usernames) == 0 {
+		user.Usernames = append(user.Usernames, username)
+		return
+	}
+
 	if user.Usernames[len(user.Usernames)-1] != username {
 		user.Usernames = append(user.Usernames, username)
 	}
@@ -48,6 +53,9 @@ func (user *User) ChangeUsername(username string) {
 
 // Get current username
 func (user *User) GetUsername() string {
+	if len(user.Usernames) == 0 {
+		return ""
+	}
 	return user.Usernames[len(user.Usernames)-1]
 }
 

@@ -95,6 +95,18 @@ func (tracker *PlayerTracker) AddUserToGroup(username string, groupName string) 
 	return nil
 }
 
+// Adds a user to a group by username.
+func (tracker *PlayerTracker) AddUserToGroupByID(id string, groupName string) error {
+	groupName = strings.ToLower(groupName)
+	group := tracker.GetGroupByName(groupName)
+	if group == nil {
+		return errors.New("group not found")
+	}
+
+	group.AddUserByID(id)
+	return nil
+}
+
 // Removes a user from a group by username.
 func (tracker *PlayerTracker) RemoveUserByUsername(username string) bool {
 	deleted := 0
@@ -256,8 +268,11 @@ func (tracker *PlayerTracker) Update() {
 		var player *Player
 
 		// Find player in BattleMetrics
-		// player = MatchUserToBattleMetricsPlayer(user, bmRes, false, false)
-		_, player = SearchUsersWithUserCreatedName(bmRes.Included, func(p Player) string { return p.Attributes.Name }, user.GetUsername(), false, false)
+		if user.Status == StatusUnknown && len(user.Usernames) == 0 && user.ID != "" {
+			_, player = SearchUsersWithUserCreatedName(bmRes.Included, func(p Player) string { return p.ID }, user.ID, false, false)
+		} else {
+			_, player = SearchUsersWithUserCreatedName(bmRes.Included, func(p Player) string { return p.Attributes.Name }, user.GetUsername(), false, false)
+		}
 
 		// If found, update status
 		if player != nil {
