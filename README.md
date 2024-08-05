@@ -58,7 +58,6 @@ Ensure that your .env file has a BOT_TOKEN and GUILD_ID set. LOG_LEVEL is option
 
 ```
 docker-compose up --build -d
-
 ```
 
 **Note:** Despite what [Docker says](https://docs.docker.com/config/containers/start-containers-automatically/#:~:text=A%20restart%20policy%20only%20takes%20effect%20after%20a%20container%20starts%20successfully.%20In%20this%20case%2C%20starting%20successfully%20means%20that%20the%20container%20is%20up%20for%20at%20least%2010%20seconds%20and%20Docker%20has%20started%20monitoring%20it.%20This%20prevents%20a%20container%20which%20doesn%27t%20start%20at%20all%20from%20going%20into%20a%20restart%20loop.) the restart policy will start spamming immedietly if the bot crashses on startup. So please ensure your BOT_TOKEN and GUILD_ID are correct before running the bot.
