@@ -26,7 +26,7 @@ func main() {
 
 	// Optional save file
 	if os.Getenv("SAVE_FILE") == "" {
-		os.Setenv("SAVE_FILE", "data/save_data.json")
+		os.Setenv("SAVE_FILE", "save_data.json")
 	}
 
 	// discordgo.Logger
