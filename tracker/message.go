@@ -52,6 +52,16 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			return
 		}
 
+		// Set bot activity
+		updater.Session.UpdateStatusComplex(discordgo.UpdateStatusData{
+			IdleSince: nil,
+			Activities: []*discordgo.Activity{{
+				Name: fmt.Sprintf("%d/%d Online", tracker.Online[0], tracker.Online[1]),
+				Type: discordgo.ActivityTypeWatching,
+			}},
+			AFK: false,
+		})
+
 		updater.ChannelID = updater.Message.ChannelID
 
 		content := fmt.Sprintf("https://www.battlemetrics.com/servers/rust/%s\n```diff\n%s\n%d/%d Online\n\n", tracker.BattleMetricsID, tracker.ServerName, tracker.Online[0], tracker.Online[1])
