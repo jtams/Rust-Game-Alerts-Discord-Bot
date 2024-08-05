@@ -12,7 +12,6 @@ Rust (the game not the language) alerts is a Discord bot that will send a messag
 git clone https://github.com/jtams/Rust-Game-Alerts-Discord-Bot
 cd Rust-Game-Alerts-Discord-Bot
 go build
-
 ```
 
 Create a `.env` file in the root directory or add environment variables with the following information:
