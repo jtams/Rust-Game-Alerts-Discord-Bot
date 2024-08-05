@@ -61,7 +61,7 @@ func main() {
 	// Bot Login
 	err = discord.Open()
 	if err != nil {
-		logger.Error("Cannot open the session", "error", err.Error())
+		panic("Cannot open the session")
 	}
 	defer discord.Close()
 

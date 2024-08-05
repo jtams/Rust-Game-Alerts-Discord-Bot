@@ -1,0 +1,23 @@
+services:
+  discord-playertracker:
+    image: rust-game-alerts-discord-bot
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - playertracker-data:/data
+    env_file: .env
+    environment:
+      - LOG_LEVEL=INFO
+      - SAVE_FILE=/data/savefile.json
+    command: >
+      sh -c '
+        if [ -z "$$BOT_TOKEN" ] || [ -z "$$GUILD_ID" ]; then
+          echo "Error: BOT_TOKEN and GUILD_ID environment variables are required.";
+          exit 1;
+        fi;
+        ./playertrackerbot
+      '
+    restart: unless-stopped
+volumes:
+  playertracker-data:
