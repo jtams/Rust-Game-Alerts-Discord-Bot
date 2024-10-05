@@ -51,11 +51,12 @@ func main() {
 	slog.SetDefault(logger)
 	setDiscordGoLogger(logger)
 
+	logger.Info("Application Started")
 	logger.Info("Log Level", "level", logLevel.String())
 
 	// Handles log in event
 	discord.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		logger.Info("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+		logger.Info(fmt.Sprintf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator))
 	})
 
 	// Bot Login

@@ -219,6 +219,7 @@ func (tracker *PlayerTracker) Start() {
 
 // Stop the tracker loop, updates messenger as well
 func (tracker *PlayerTracker) Stop() {
+	logger.Info("Stopped")
 	tracker.Running = false
 	// Allows messenger to know to stop
 	tracker.Channel <- time.Now()
@@ -232,8 +233,10 @@ func (tracker *PlayerTracker) IsRunning() bool {
 // Main loop for the tracker. Update, signal messenger, wait, repeat
 func (tracker *PlayerTracker) Loop() {
 	for tracker.Running {
+		logger.Debug("Tracker Update Cycle Started...")
 		tracker.Update()
 		tracker.Channel <- time.Now()
+		logger.Debug("Tracker Update Cycle Ended.")
 		time.Sleep(time.Duration(tracker.Interval) * time.Second)
 	}
 }
@@ -253,13 +256,18 @@ func (tracker *PlayerTracker) Update() {
 		logger.Error("Failed to decode Battle Metrics response", "error", err)
 		d := []byte{}
 		resp.Body.Read(d)
+		logger.Debug(string(d))
 		return
 	}
+
+	logger.Debug("Successfully received and parsed Battle Metrics data")
 
 	// Set server population
 	tracker.Online[0] = bmRes.Data.Attributes.Players
 	tracker.Online[1] = bmRes.Data.Attributes.MaxPlayers
 	tracker.ServerName = bmRes.Data.Attributes.Name
+
+	logger.Debug(fmt.Sprintf("Updating player count; %d players online out of %d max slots.", tracker.Online[0], tracker.Online[1]))
 
 	// Update status of players
 	// If this is the first time we see the user, we add them to the tracker
@@ -279,11 +287,13 @@ func (tracker *PlayerTracker) Update() {
 			user.SetStatus(StatusOnline)
 			user.ID = player.ID
 			user.ChangeUsername(player.Attributes.Name)
+			logger.Debug("Updating user: " + player.Attributes.Name + "#" + player.ID)
 			continue
 		}
 
 		// If not found, set status to offline
 		if user.Status == StatusOnline {
+			logger.Debug("User has gone offline: " + user.GetUsername() + "#" + user.ID)
 			user.SetStatus(StatusOffline)
 		}
 	}

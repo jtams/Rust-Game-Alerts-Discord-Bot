@@ -38,6 +38,8 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 
 	// Wait for tracker update
 	for range tracker.Channel {
+		logger.Debug("Tracker update...")
+
 		if !tracker.IsRunning() {
 			// Save to register that the tracker was stopped manually
 			SaveTrackerData(os.Getenv("SAVE_FILE"), tracker, updater)
@@ -48,6 +50,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 		// If the message is nil, create a new message.
 		// If the /start command doesn't create a message for some reason.
 		if updater.Message == nil {
+			logger.Info("Message doesn't exist, creating new one")
 			createNewMessage(updater, updater.Session, updater.ChannelID, "Tracker is starting up...")
 			return
 		}
@@ -129,9 +132,11 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 
 		// No need to update, nothing changed
 		if updater.content == content {
+			logger.Debug("Content didn't change. Waiting for next update")
 			continue
 		}
 
+		logger.Debug("Content changed, updating message...")
 		updater.content = content
 
 		msgEdit := &discordgo.MessageEdit{
@@ -147,10 +152,12 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			message, _ := updater.Session.ChannelMessageSend(updater.ChannelID, content)
 			updater.Message = message
 			updater.MessageOverflow = 0
+			logger.Debug("New messages in channel. Sending a new message to keep tracker visible.")
 		} else {
 			_, err := updater.Session.ChannelMessageEditComplex(msgEdit)
 			// If the message was deleted, create a new message
 			if err != nil {
+				logger.Info("Message was deleted, creating new one.")
 				createNewMessage(updater, updater.Session, updater.ChannelID, content)
 			}
 		}
