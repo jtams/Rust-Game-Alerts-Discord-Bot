@@ -158,6 +158,7 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			// If the message was deleted, create a new message
 			if err != nil {
 				logger.Info("Message was deleted, creating new one.")
+				logger.Error(err.Error())
 				createNewMessage(updater, updater.Session, updater.ChannelID, content)
 			}
 		}
