@@ -22,7 +22,7 @@ type Messenger struct {
 // If bot fails to update message a few times, it will create a new message
 // Without this, the bot would occasionally receieve a "connection reset by peer error"
 // from Discord's API every day or so.
-const FailedToUpdateLimit = 3
+const FailedToUpdateLimit = 2
 
 // Creates a new Messenger with default settings
 func NewMessageUpdater(session *discordgo.Session) *Messenger {
@@ -62,8 +62,8 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 				updater.FailedToUpdateCount = 0
 				return
 			}
-			updater.FailedToUpdateCount++
 			logger.Error("Message doesn't exist, failed to create new one. Fail count at " + string(updater.FailedToUpdateCount))
+			updater.FailedToUpdateCount++
 		}
 
 		// Set bot activity
@@ -179,8 +179,8 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 					createNewMessage(updater, updater.Session, updater.ChannelID, content)
 					updater.FailedToUpdateCount = 0
 				} else {
-					updater.FailedToUpdateCount++
 					logger.Error("Failed to update message, fail count at " + string(updater.FailedToUpdateCount) + ". Error: " + err.Error())
+					updater.FailedToUpdateCount++
 				}
 			} else {
 				updater.FailedToUpdateCount = 0
