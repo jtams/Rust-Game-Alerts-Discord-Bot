@@ -11,12 +11,18 @@ import (
 
 // Messenger is used to update the message with the tracker data
 type Messenger struct {
-	Session         *discordgo.Session
-	Message         *discordgo.Message
-	ChannelID       string
-	content         string
-	MessageOverflow int
+	Session             *discordgo.Session
+	Message             *discordgo.Message
+	ChannelID           string
+	content             string
+	MessageOverflow     int
+	FailedToUpdateCount int
 }
+
+// If bot fails to update message a few times, it will create a new message
+// Without this, the bot would occasionally receieve a "connection reset by peer error"
+// from Discord's API every day or so.
+const FailedToUpdateLimit = 3
 
 // Creates a new Messenger with default settings
 func NewMessageUpdater(session *discordgo.Session) *Messenger {
@@ -50,9 +56,14 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 		// If the message is nil, create a new message.
 		// If the /start command doesn't create a message for some reason.
 		if updater.Message == nil {
-			logger.Info("Message doesn't exist, creating new one")
-			createNewMessage(updater, updater.Session, updater.ChannelID, "Tracker is starting up...")
-			return
+			if updater.FailedToUpdateCount > FailedToUpdateLimit {
+				logger.Info("Message doesn't exist, creating new one")
+				createNewMessage(updater, updater.Session, updater.ChannelID, "Tracker is starting up...")
+				updater.FailedToUpdateCount = 0
+				return
+			}
+			updater.FailedToUpdateCount++
+			logger.Error("Message doesn't exist, failed to create new one. Fail count at " + string(updater.FailedToUpdateCount))
 		}
 
 		// Set bot activity
@@ -154,12 +165,25 @@ func (updater *Messenger) StartTracking(tracker *PlayerTracker) {
 			updater.MessageOverflow = 0
 			logger.Debug("New messages in channel. Sending a new message to keep tracker visible.")
 		} else {
+
+			// Standard message update
 			_, err := updater.Session.ChannelMessageEditComplex(msgEdit)
-			// If the message was deleted, create a new message
+			// If the message was deleted (or other error), create a new message
+			// Todo: Check if the message was deleted or if there was another error
+			// Currently, if the message was delete it will take 3 cycles to create the new one.
+			// Error recieved on message failure was: "connection reset by peer"
 			if err != nil {
-				logger.Info("Message was deleted, creating new one.")
-				logger.Error(err.Error())
-				createNewMessage(updater, updater.Session, updater.ChannelID, content)
+				if updater.FailedToUpdateCount > FailedToUpdateLimit {
+					logger.Info("Message update failed, was the message deleted? Creating new one.")
+					logger.Error(err.Error())
+					createNewMessage(updater, updater.Session, updater.ChannelID, content)
+					updater.FailedToUpdateCount = 0
+				} else {
+					updater.FailedToUpdateCount++
+					logger.Error("Failed to update message, fail count at " + string(updater.FailedToUpdateCount) + ". Error: " + err.Error())
+				}
+			} else {
+				updater.FailedToUpdateCount = 0
 			}
 		}
 
